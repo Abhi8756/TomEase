@@ -13,6 +13,8 @@
     "autoprefixer": "^10.5.2",
     "axios": "^1.18.1",
     "framer-motion": "^12.42.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.22.0",
     "postcss": "^8.5.16",

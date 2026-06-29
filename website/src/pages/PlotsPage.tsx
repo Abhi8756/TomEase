@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -32,6 +33,7 @@ export default function PlotsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPlotName, setNewPlotName] = useState('');
   const [position, setPosition] = useState<[number, number] | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadPlots();
@@ -95,13 +97,17 @@ export default function PlotsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {plots.map(plot => (
-            <div key={plot.id} className="glass p-5 rounded-2xl hover:border-primary-500/30 transition-colors">
+            <div 
+              key={plot.id} 
+              onClick={() => navigate(`/plots/${plot.id}`)}
+              className="glass p-5 rounded-2xl cursor-pointer group hover:border-primary-500/50 hover:bg-dark-800/80 transition-all"
+            >
               <div className="flex items-start justify-between mb-4">
-                <div className="p-3 bg-primary-500/10 rounded-xl">
+                <div className="p-3 bg-primary-500/10 rounded-xl group-hover:bg-primary-500/20 transition-colors">
                   <MapPin className="w-6 h-6 text-primary-400" />
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-1">{plot.name}</h3>
+              <h3 className="text-xl font-bold text-white mb-1 group-hover:text-primary-400 transition-colors">{plot.name}</h3>
               <p className="text-xs text-gray-500">Added {new Date(plot.created_at).toLocaleDateString()}</p>
               
               {plot.latitude && plot.longitude && (

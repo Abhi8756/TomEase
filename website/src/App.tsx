@@ -11,6 +11,7 @@ import ResultPage from './pages/ResultPage';
 import HistoryPage from './pages/HistoryPage';
 import AdminPage from './pages/AdminPage';
 import PlotsPage from './pages/PlotsPage';
+import PlotDetailsPage from './pages/PlotDetailsPage';
 import Navbar from './components/layout/Navbar';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {

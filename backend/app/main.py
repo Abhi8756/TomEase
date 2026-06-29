@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .models import ModelService
-from .database import Database
+from .database import database
 from .storage import R2Storage
 from .auth import router as auth_router, get_current_user
 from .plots import router as plots_router
@@ -45,7 +45,7 @@ app.mount("/storage", StaticFiles(directory="storage"), name="storage")
 
 # Initialize services
 model_service = ModelService()
-database = Database()
+# database = Database()  # Imported from database.py
 storage = R2Storage()
 
 # Models

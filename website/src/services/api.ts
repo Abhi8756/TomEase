@@ -68,8 +68,9 @@ export const analyticsApi = {
 };
 
 export const plotsApi = {
-  create: (name: string, latitude?: number, longitude?: number) => api.post('/plots/', { name, latitude, longitude }),
+  create: (data: { name: string; latitude?: number; longitude?: number }) => api.post('/plots/', data),
   getAll: () => api.get('/plots/'),
+  getById: (id: string) => api.get(`/plots/${id}`),
 };
 
 // ─── Model ───────────────────────────────────────────

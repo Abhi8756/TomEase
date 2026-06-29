@@ -274,3 +274,44 @@ class Database:
             ]
         finally:
             session.close()
+
+    async def get_plot_by_id(self, plot_id: str, user_id: str) -> Optional[Dict]:
+        """Get a single plot by ID"""
+        session = self.SessionLocal()
+        try:
+            plot = session.query(Plot).filter(Plot.id == plot_id, Plot.user_id == user_id).first()
+            if not plot:
+                return None
+            return {
+                "id": plot.id,
+                "name": plot.name,
+                "latitude": plot.latitude,
+                "longitude": plot.longitude,
+                "created_at": plot.created_at.isoformat()
+            }
+        finally:
+            session.close()
+
+    async def get_scans_by_plot(self, plot_id: str, user_id: str) -> List[Dict]:
+        """Get all scans for a specific plot"""
+        session = self.SessionLocal()
+        try:
+            plot = session.query(Plot).filter(Plot.id == plot_id, Plot.user_id == user_id).first()
+            if not plot:
+                return []
+            
+            scans = session.query(Prediction).filter(Prediction.plot_id == plot_id).order_by(Prediction.timestamp.desc()).all()
+            return [
+                {
+                    "scan_id": p.scan_id,
+                    "disease": p.disease,
+                    "confidence": p.confidence,
+                    "timestamp": p.timestamp,
+                    "is_reliable": p.is_reliable
+                }
+                for p in scans
+            ]
+        finally:
+            session.close()
+
+database = Database()

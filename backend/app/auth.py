@@ -56,10 +56,7 @@ class UserResponse(BaseModel):
     role: str
     created_at: str
 
-from .database import Database
-
-# ── Database Instance ────────────────────────────────────────────────────────
-db = Database()
+from .database import database as db
 
 def _hash_password(pw: str) -> str:
     if not CRYPTO_AVAILABLE:

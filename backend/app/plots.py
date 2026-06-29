@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 import uuid
 from datetime import datetime
-from .auth import get_current_user, db
+from .auth import get_current_user
+from .database import database as db
 
 router = APIRouter(prefix="/plots", tags=["plots"])
 
@@ -45,3 +46,15 @@ async def create_plot(req: PlotCreate, current_user: dict = Depends(get_current_
 async def get_plots(current_user: dict = Depends(get_current_user)):
     plots = await db.get_user_plots(current_user["id"])
     return plots
+
+@router.get("/{plot_id}")
+async def get_plot_details(plot_id: str, current_user: dict = Depends(get_current_user)):
+    plot = await db.get_plot_by_id(plot_id, current_user["id"])
+    if not plot:
+        raise HTTPException(404, "Plot not found")
+    
+    scans = await db.get_scans_by_plot(plot_id, current_user["id"])
+    return {
+        "plot": plot,
+        "scans": scans
+    }
