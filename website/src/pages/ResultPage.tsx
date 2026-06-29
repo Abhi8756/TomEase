@@ -130,25 +130,20 @@ export default function ResultPage() {
 
           {/* Confidence bars */}
           <div className="glass p-5">
-            <h3 className="font-bold text-white text-sm mb-4">Confidence Scores</h3>
-            {[
-              { label: 'Raw Confidence', value: parseFloat(confPct) },
-              { label: 'Calibrated Confidence', value: parseFloat(calPct) },
-            ].map(({ label, value }) => (
-              <div key={label} className="mb-3 last:mb-0">
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-gray-400">{label}</span>
-                  <span className="font-bold text-white">{value}%</span>
-                </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                  <motion.div className="h-full rounded-full"
-                    style={{ background: color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${value}%` }}
-                    transition={{ duration: 1, delay: 0.3, ease: 'easeOut' }} />
-                </div>
+            <h3 className="font-bold text-white text-sm mb-4">AI Confidence Score</h3>
+            <div className="mb-3">
+              <div className="flex justify-between text-xs mb-1.5">
+                <span className="text-gray-400">Match Probability</span>
+                <span className="font-bold text-white">{parseFloat(confPct)}%</span>
               </div>
-            ))}
+              <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                <motion.div className="h-full rounded-full"
+                  style={{ background: color }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${parseFloat(confPct)}%` }}
+                  transition={{ duration: 1, delay: 0.3, ease: 'easeOut' }} />
+              </div>
+            </div>
           </div>
         </motion.div>
       </div>

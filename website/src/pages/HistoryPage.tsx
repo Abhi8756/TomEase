@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Leaf, Clock, TrendingUp, X } from 'lucide-react';
-import { predictApi } from '../services/api';
+import { Search, Filter, Leaf, Clock, TrendingUp, X, Image as ImageIcon } from 'lucide-react';
+import { predictApi, API_BASE } from '../services/api';
 
 const diseaseColors: Record<string, string> = {
   Healthy: '#10b981', Early_Blight: '#f59e0b', Late_Blight: '#ef4444',
@@ -15,6 +15,7 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [diseaseFilter, setDiseaseFilter] = useState('All');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     predictApi.recentScans(100)
@@ -107,7 +108,8 @@ export default function HistoryPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/5">
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-4">#</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-4 w-16">#</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-4 w-20">Image</th>
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-4">Disease</th>
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-4">Confidence</th>
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-4">Date</th>
@@ -120,6 +122,20 @@ export default function HistoryPage() {
                     return (
                       <tr key={scan.scan_id || i} className="hover:bg-white/3 transition-colors">
                         <td className="px-6 py-4 text-sm text-gray-500">{i + 1}</td>
+                        <td className="px-6 py-4">
+                          {scan.image_url ? (
+                            <img 
+                              src={scan.image_url.startsWith('http') ? scan.image_url : `${API_BASE}${scan.image_url}`} 
+                              alt="Scan" 
+                              onClick={() => setSelectedImage(scan.image_url)}
+                              className="w-10 h-10 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity cursor-pointer" 
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-dark-800 rounded-lg flex items-center justify-center border border-white/5">
+                              <ImageIcon className="w-4 h-4 text-gray-600" />
+                            </div>
+                          )}
+                        </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
@@ -158,6 +174,22 @@ export default function HistoryPage() {
           Showing {filtered.length} of {scans.length} scans
         </p>
       </motion.div>
+
+      {/* Image Modal */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-zoom-out"
+          onClick={() => setSelectedImage(null)}
+        >
+          <motion.img 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            src={selectedImage.startsWith('http') ? selectedImage : `${API_BASE}${selectedImage}`} 
+            alt="Scan Full" 
+            className="max-w-full max-h-[90vh] rounded-2xl border border-white/10 object-contain shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   );
 }

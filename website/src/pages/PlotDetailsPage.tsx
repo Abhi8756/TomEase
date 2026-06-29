@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Download, MapPin, CloudRain, Sun, Wind, Activity } from 'lucide-react';
-import { plotsApi } from '../services/api';
+import { ArrowLeft, Download, MapPin, CloudRain, Sun, Wind, Activity, Image as ImageIcon } from 'lucide-react';
+import { plotsApi, API_BASE } from '../services/api';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -15,6 +15,7 @@ export default function PlotDetailsPage() {
   const [scans, setScans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [weather, setWeather] = useState<any>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -149,14 +150,28 @@ export default function PlotDetailsPage() {
                     key={scan.scan_id} 
                     className="flex items-center justify-between p-4 rounded-xl bg-dark-900 border border-white/5"
                   >
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <span className={`w-3 h-3 rounded-full ${scan.disease === 'Healthy' ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
-                        <h3 className="font-semibold text-white">{scan.disease.replace(/_/g, ' ')}</h3>
+                    <div className="flex items-center gap-4">
+                      {scan.image_url ? (
+                        <img 
+                          src={scan.image_url.startsWith('http') ? scan.image_url : `${API_BASE}${scan.image_url}`} 
+                          alt="Scan" 
+                          onClick={() => setSelectedImage(scan.image_url)}
+                          className="w-12 h-12 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity cursor-pointer" 
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-dark-800 rounded-lg flex items-center justify-center border border-white/5">
+                          <ImageIcon className="w-5 h-5 text-gray-600" />
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className={`w-3 h-3 rounded-full ${scan.disease === 'Healthy' ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
+                          <h3 className="font-semibold text-white">{scan.disease.replace(/_/g, ' ')}</h3>
+                        </div>
+                        <p className="text-sm text-gray-400">
+                          {dayjs(scan.timestamp).format('MMM D, YYYY · h:mm A')}
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-400">
-                        {dayjs(scan.timestamp).format('MMM D, YYYY · h:mm A')}
-                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-gray-300">{(scan.confidence * 100).toFixed(1)}% Match</p>
@@ -234,6 +249,22 @@ export default function PlotDetailsPage() {
           
         </div>
       </div>
+
+      {/* Image Modal */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-zoom-out"
+          onClick={() => setSelectedImage(null)}
+        >
+          <motion.img 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            src={selectedImage.startsWith('http') ? selectedImage : `${API_BASE}${selectedImage}`} 
+            alt="Scan Full" 
+            className="max-w-full max-h-[90vh] rounded-2xl border border-white/10 object-contain shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   );
 }

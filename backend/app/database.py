@@ -13,6 +13,8 @@ class Prediction(Base):
     
     id = Column(Integer, primary_key=True)
     scan_id = Column(String(36), unique=True, index=True)
+    user_id = Column(String(36), index=True, nullable=True)
+    image_url = Column(String(255), nullable=True)
     disease = Column(String(50))
     confidence = Column(Float)
     confidence_calibrated = Column(Float)
@@ -102,24 +104,25 @@ class Database:
         confidence: float,
         confidence_calibrated: float,
         model_version: str,
-        is_reliable: bool = True,
-        warning: str = None,
-        plot_id: str = None
-    ):
+        plot_id: str = None,
+        user_id: str = None,
+        image_url: str = None
+    ) -> None:
         """Save prediction to database"""
         session = self.SessionLocal()
         try:
-            prediction = Prediction(
+            pred = Prediction(
                 scan_id=scan_id,
                 disease=disease,
                 confidence=confidence,
                 confidence_calibrated=confidence_calibrated,
                 model_version=model_version,
-                is_reliable=is_reliable,
-                warning=warning,
-                plot_id=plot_id
+                is_reliable=confidence_calibrated >= 0.6,
+                plot_id=plot_id,
+                user_id=user_id,
+                image_url=image_url
             )
-            session.add(prediction)
+            session.add(pred)
             session.commit()
         finally:
             session.close()
@@ -136,20 +139,21 @@ class Database:
         """Get recent predictions for analytics"""
         session = self.SessionLocal()
         try:
-            scans = session.query(Prediction)\
+            preds = session.query(Prediction)\
                 .order_by(Prediction.timestamp.desc())\
                 .limit(limit)\
                 .all()
             
             return [
                 {
-                    'scan_id': scan.scan_id,
-                    'disease': scan.disease,
-                    'confidence': scan.confidence_calibrated,
-                    'is_reliable': scan.is_reliable,
-                    'timestamp': scan.timestamp.isoformat()
+                    "scan_id": p.scan_id,
+                    "disease": p.disease,
+                    "confidence": p.confidence,
+                    "is_reliable": p.is_reliable,
+                    "timestamp": p.timestamp.isoformat(),
+                    "image_url": p.image_url
                 }
-                for scan in scans
+                for p in preds
             ]
         finally:
             session.close()
@@ -307,7 +311,8 @@ class Database:
                     "disease": p.disease,
                     "confidence": p.confidence,
                     "timestamp": p.timestamp,
-                    "is_reliable": p.is_reliable
+                    "is_reliable": p.is_reliable,
+                    "image_url": p.image_url
                 }
                 for p in scans
             ]

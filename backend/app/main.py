@@ -13,7 +13,7 @@ load_dotenv()
 
 from .models import ModelService
 from .database import database
-from .storage import R2Storage
+from .storage import LocalStorage
 from .auth import router as auth_router, get_current_user
 from .plots import router as plots_router
 
@@ -46,7 +46,7 @@ app.mount("/storage", StaticFiles(directory="storage"), name="storage")
 # Initialize services
 model_service = ModelService()
 # database = Database()  # Imported from database.py
-storage = R2Storage()
+storage = LocalStorage()
 
 # Models
 class PredictionResponse(BaseModel):
@@ -60,6 +60,7 @@ class PredictionResponse(BaseModel):
     is_reliable: bool
     warning: Optional[str] = None
     timestamp: str
+    image_uri: Optional[str] = None
 
 class ModelInfo(BaseModel):
     version: str
@@ -107,7 +108,8 @@ async def health_check():
 async def predict_disease(
     file: UploadFile = File(...),
     plot_id: Optional[str] = Form(None),
-    background_tasks: BackgroundTasks = None
+    background_tasks: BackgroundTasks = None,
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Main prediction endpoint
@@ -139,6 +141,12 @@ async def predict_disease(
             scan_id
         )
         
+        # Upload Original Image
+        image_url = await storage.upload_image(
+            image_bytes,
+            scan_id
+        )
+        
         # Get disease recommendations
         recommendations = get_recommendations(result['disease'])
         
@@ -151,7 +159,9 @@ async def predict_disease(
                 confidence=result['confidence'],
                 confidence_calibrated=result['confidence_calibrated'],
                 model_version=model_service.get_version(),
-                plot_id=plot_id
+                plot_id=plot_id,
+                user_id=current_user["id"],
+                image_url=image_url
             )
         
         return PredictionResponse(
@@ -164,7 +174,8 @@ async def predict_disease(
             recommendations=recommendations,
             is_reliable=is_reliable,
             warning=warning,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.utcnow().isoformat(),
+            image_uri=image_url
         )
         
     except Exception as e:
