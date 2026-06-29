@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Header, BackgroundTasks, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Header, BackgroundTasks, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
@@ -15,6 +15,7 @@ from .models import ModelService
 from .database import Database
 from .storage import R2Storage
 from .auth import router as auth_router, get_current_user
+from .plots import router as plots_router
 
 app = FastAPI(
     title="Tomato Leaf Disease Detection API",
@@ -35,6 +36,7 @@ from fastapi.staticfiles import StaticFiles
 
 # Auth routes
 app.include_router(auth_router)
+app.include_router(plots_router)
 
 # Mount local storage for serving GradCAMs if not using cloud R2
 os.makedirs("storage/gradcams", exist_ok=True)
@@ -104,6 +106,7 @@ async def health_check():
 @app.post("/predict", response_model=PredictionResponse)
 async def predict_disease(
     file: UploadFile = File(...),
+    plot_id: Optional[str] = Form(None),
     background_tasks: BackgroundTasks = None
 ):
     """
@@ -147,7 +150,8 @@ async def predict_disease(
                 disease=result['disease'],
                 confidence=result['confidence'],
                 confidence_calibrated=result['confidence_calibrated'],
-                model_version=model_service.get_version()
+                model_version=model_service.get_version(),
+                plot_id=plot_id
             )
         
         return PredictionResponse(

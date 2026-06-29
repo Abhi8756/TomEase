@@ -10,6 +10,7 @@ import ScanPage from './pages/ScanPage';
 import ResultPage from './pages/ResultPage';
 import HistoryPage from './pages/HistoryPage';
 import AdminPage from './pages/AdminPage';
+import PlotsPage from './pages/PlotsPage';
 import Navbar from './components/layout/Navbar';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -68,6 +69,11 @@ export default function App() {
         <Route path="/history" element={
           <ProtectedRoute>
             <AppLayout><HistoryPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/plots" element={
+          <ProtectedRoute>
+            <AppLayout><PlotsPage /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/admin" element={

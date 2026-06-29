@@ -50,14 +50,26 @@ export const authApi = {
 
 // ─── Disease Detection ───────────────────────────────
 export const predictApi = {
-  predict: (file: File) => {
-    const form = new FormData();
-    form.append('file', file);
-    return api.post('/predict', form, {
+  predict: (file: File, plot_id?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (plot_id) {
+      formData.append('plot_id', plot_id);
+    }
+    return api.post('/predict', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
   recentScans: (limit = 50) => api.get(`/analytics/recent-scans?limit=${limit}`),
+};
+
+export const analyticsApi = {
+  getRecentScans: (limit: number = 50) => api.get(`/analytics/recent-scans?limit=${limit}`),
+};
+
+export const plotsApi = {
+  create: (name: string, latitude?: number, longitude?: number) => api.post('/plots/', { name, latitude, longitude }),
+  getAll: () => api.get('/plots/'),
 };
 
 // ─── Model ───────────────────────────────────────────

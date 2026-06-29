@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Leaf, Scan, History, LayoutDashboard, Settings, LogOut, Menu, X, ChevronRight } from 'lucide-react';
+import { Leaf, Scan, History, LayoutDashboard, Settings, LogOut, Menu, X, ChevronRight, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { useStore } from '../../store';
 import toast from 'react-hot-toast';
@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/scan', icon: Scan, label: 'Scan Leaf' },
+  { to: '/plots', icon: MapPin, label: 'My Plots' },
   { to: '/history', icon: History, label: 'History' },
 ];
 

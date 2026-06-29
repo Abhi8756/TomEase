@@ -21,7 +21,19 @@ class Prediction(Base):
     warning = Column(Text, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     user_feedback = Column(String(20), nullable=True)  # correct/incorrect
+    plot_id = Column(String(36), nullable=True, index=True)
     
+class Plot(Base):
+    """Store field/plot information for users"""
+    __tablename__ = 'plots'
+    
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), index=True)
+    name = Column(String(255))
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class ModelVersion(Base):
     """Track model versions"""
     __tablename__ = 'model_versions'
@@ -91,7 +103,8 @@ class Database:
         confidence_calibrated: float,
         model_version: str,
         is_reliable: bool = True,
-        warning: str = None
+        warning: str = None,
+        plot_id: str = None
     ):
         """Save prediction to database"""
         session = self.SessionLocal()
@@ -103,7 +116,8 @@ class Database:
                 confidence_calibrated=confidence_calibrated,
                 model_version=model_version,
                 is_reliable=is_reliable,
-                warning=warning
+                warning=warning,
+                plot_id=plot_id
             )
             session.add(prediction)
             session.commit()
@@ -224,5 +238,39 @@ class Database:
         session = self.SessionLocal()
         try:
             return session.query(User).count()
+        finally:
+            session.close()
+
+    async def create_plot(self, plot_id: str, user_id: str, name: str, latitude: float = None, longitude: float = None) -> None:
+        """Create a new plot/field"""
+        session = self.SessionLocal()
+        try:
+            plot = Plot(
+                id=plot_id,
+                user_id=user_id,
+                name=name,
+                latitude=latitude,
+                longitude=longitude
+            )
+            session.add(plot)
+            session.commit()
+        finally:
+            session.close()
+
+    async def get_user_plots(self, user_id: str) -> List[Dict]:
+        """Get all plots for a specific user"""
+        session = self.SessionLocal()
+        try:
+            plots = session.query(Plot).filter(Plot.user_id == user_id).order_by(Plot.created_at.desc()).all()
+            return [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "latitude": p.latitude,
+                    "longitude": p.longitude,
+                    "created_at": p.created_at.isoformat()
+                }
+                for p in plots
+            ]
         finally:
             session.close()

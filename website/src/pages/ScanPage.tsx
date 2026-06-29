@@ -1,11 +1,11 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Camera, X, Leaf, AlertCircle, Zap, Crop as CropIcon } from 'lucide-react';
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import { predictApi } from '../services/api';
+import { predictApi, plotsApi } from '../services/api';
 import { useStore } from '../store';
 import toast from 'react-hot-toast';
 
@@ -48,10 +48,16 @@ export default function ScanPage() {
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<Crop | null>(null);
   const [isCropping, setIsCropping] = useState(false);
+  const [plots, setPlots] = useState<any[]>([]);
+  const [selectedPlot, setSelectedPlot] = useState('');
   const imgRef = useRef<HTMLImageElement>(null);
   
   const { setLatestResult } = useStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    plotsApi.getAll().then(res => setPlots(res.data)).catch(() => {});
+  }, []);
 
   const onDrop = useCallback((accepted: File[]) => {
     const f = accepted[0];
@@ -105,7 +111,7 @@ export default function ScanPage() {
 
     const interval = setInterval(() => setProgress(p => Math.min(p + 8, 85)), 200);
     try {
-      const { data } = await predictApi.predict(fileToUpload);
+      const { data } = await predictApi.predict(fileToUpload, selectedPlot || undefined);
       clearInterval(interval);
       setProgress(100);
       setLatestResult(data, preview || undefined);
@@ -245,8 +251,25 @@ export default function ScanPage() {
           </div>
         )}
 
+        {/* Plot Selection */}
+        {plots.length > 0 && (
+          <div className="mt-6 mb-2">
+            <label className="block text-sm font-medium text-gray-400 mb-2">Select Plot (Optional)</label>
+            <select 
+              value={selectedPlot} 
+              onChange={(e) => setSelectedPlot(e.target.value)}
+              className="w-full bg-dark-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary-500 transition-colors"
+            >
+              <option value="">None (General Scan)</option>
+              {plots.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Analyze button */}
-        <div className="mt-6 flex gap-3">
+        <div className="mt-4 flex gap-3">
           {preview && (
             <button onClick={clearFile} className="btn-secondary flex items-center gap-2 flex-1">
               <Camera className="w-4 h-4" />
