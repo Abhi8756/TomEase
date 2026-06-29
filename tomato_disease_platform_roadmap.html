@@ -1,0 +1,259 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.rmap{padding:1.5rem 0;max-width:680px}
+.phase-header{display:flex;align-items:center;gap:12px;margin-bottom:1rem}
+.phase-badge{font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.p1 .phase-badge{background:var(--color-background-info);color:var(--color-text-info)}
+.p2 .phase-badge{background:var(--color-background-success);color:var(--color-text-success)}
+.p3 .phase-badge{background:var(--color-background-warning);color:var(--color-text-warning)}
+.p4 .phase-badge{background:#EEEDFE;color:#534AB7}
+.phase-title{font-size:16px;font-weight:500;color:var(--color-text-primary)}
+.phase-sub{font-size:12px;color:var(--color-text-secondary);margin-left:auto;white-space:nowrap}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:1.5rem}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px 14px;cursor:pointer;transition:border-color .15s}
+.card:hover{border-color:var(--color-border-primary)}
+.card-icon{font-size:20px;margin-bottom:8px;color:var(--color-text-secondary)}
+.card-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px}
+.card-desc{font-size:11px;color:var(--color-text-secondary);line-height:1.5}
+.divider{height:0.5px;background:var(--color-border-tertiary);margin:1rem 0 1.5rem}
+.section-label{font-size:11px;font-weight:500;color:var(--color-text-tertiary);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.75rem}
+.tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.5rem}
+.tag{font-size:11px;padding:3px 9px;border-radius:20px;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary)}
+.stack-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem}
+.stack-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px}
+.stack-card .slabel{font-size:11px;color:var(--color-text-tertiary);margin-bottom:6px;font-weight:500}
+.stack-card .svals{font-size:12px;color:var(--color-text-secondary);line-height:1.8}
+.model-box{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1.5rem}
+.model-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.model-row:last-child{border-bottom:none}
+.model-tag{font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px;white-space:nowrap;margin-top:2px}
+.keep{background:#EAF3DE;color:#3B6D11}
+.improve{background:var(--color-background-info);color:var(--color-text-info)}
+.new{background:#EEEDFE;color:#534AB7}
+.model-text{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+.model-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px}
+</style>
+<div class="rmap">
+
+<div class="section-label">Tech stack</div>
+<div class="stack-row">
+  <div class="stack-card">
+    <div class="slabel">Mobile app</div>
+    <div class="svals">React Native + Expo<br>TensorFlow Lite (on-device)<br>Redux + React Query</div>
+  </div>
+  <div class="stack-card">
+    <div class="slabel">Website</div>
+    <div class="svals">React + Vite + Tailwind<br>Same FastAPI backend<br>Shared component library</div>
+  </div>
+  <div class="stack-card">
+    <div class="slabel">Backend (shared)</div>
+    <div class="svals">FastAPI + PostgreSQL<br>Redis + Celery<br>Cloudflare R2</div>
+  </div>
+  <div class="stack-card">
+    <div class="slabel">Admin panel</div>
+    <div class="svals">React Admin / custom<br>Protected /admin routes<br>Model hot-swap API</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div class="phase-header p1">
+  <span class="phase-badge">Phase 1</span>
+  <span class="phase-title">Core detection app + website</span>
+  <span class="phase-sub">Weeks 1–6</span>
+</div>
+<div class="cards">
+  <div class="card" onclick="sendPrompt('How do I build the disease detection screen with confidence scores in React Native?')">
+    <div class="card-icon"><i class="ti ti-camera" aria-hidden="true"></i></div>
+    <div class="card-title">Snap & detect</div>
+    <div class="card-desc">Camera + gallery upload. Real-time inference via FastAPI. Disease name, confidence %, risk level badge.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('What should the disease detail page show for tomato late blight?')">
+    <div class="card-icon"><i class="ti ti-report-medical" aria-hidden="true"></i></div>
+    <div class="card-title">Disease detail card</div>
+    <div class="card-desc">Symptoms, cause, treatment, prevention, risk level, confidence bar — one beautiful scroll.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I build a scan history feature that stores past detections?')">
+    <div class="card-icon"><i class="ti ti-history" aria-hidden="true"></i></div>
+    <div class="card-title">Scan history</div>
+    <div class="card-desc">Timestamped log of all scans per user. Filterable by disease, date, severity.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I implement the admin model hot-swap endpoint in FastAPI?')">
+    <div class="card-icon"><i class="ti ti-shield-lock" aria-hidden="true"></i></div>
+    <div class="card-title">Admin model swap</div>
+    <div class="card-desc">Admin-only panel to upload new .pth file. Zero-downtime reload. Version history log.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I build the same detection UI for the website version?')">
+    <div class="card-icon"><i class="ti ti-world" aria-hidden="true"></i></div>
+    <div class="card-title">Web parity</div>
+    <div class="card-desc">Drag-and-drop upload on website. Same FastAPI backend. Shared result components.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I implement JWT auth with refresh tokens in FastAPI for both app and web?')">
+    <div class="card-icon"><i class="ti ti-user-circle" aria-hidden="true"></i></div>
+    <div class="card-title">Auth system</div>
+    <div class="card-desc">JWT + refresh tokens. Google OAuth. Roles: user, advisor, admin.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div class="phase-header p2">
+  <span class="phase-badge">Phase 2</span>
+  <span class="phase-title">Field & farm management</span>
+  <span class="phase-sub">Weeks 7–14</span>
+</div>
+<div class="cards">
+  <div class="card" onclick="sendPrompt('How do I implement a plot management system where farmers add fields and track scans per plot?')">
+    <div class="card-icon"><i class="ti ti-map-2" aria-hidden="true"></i></div>
+    <div class="card-title">Plot management</div>
+    <div class="card-desc">Create named plots/fields. Assign scans to plots. GPS boundary marking on map.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I build collaborative scouting reports shared between a farmer and their advisor?')">
+    <div class="card-icon"><i class="ti ti-notes" aria-hidden="true"></i></div>
+    <div class="card-title">Scouting reports</div>
+    <div class="card-desc">AI-assisted report generation. Share with advisors. PDF export. Photo attachments.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I add real-time team collaboration for farm advisors in my app?')">
+    <div class="card-icon"><i class="ti ti-users-group" aria-hidden="true"></i></div>
+    <div class="card-title">Team collaboration</div>
+    <div class="card-desc">Invite co-workers. Shared plot view. Comment threads on scans. Activity feed.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I integrate a weather API for hyperlocal farm-level forecasts with disease risk alerts?')">
+    <div class="card-icon"><i class="ti ti-cloud-rain" aria-hidden="true"></i></div>
+    <div class="card-title">Hyperlocal weather</div>
+    <div class="card-desc">Plot-level forecasts. Growing degree days. Disease-favoring condition alerts (humidity, temp).</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I build a disease alert notification system that uses location to warn nearby farmers?')">
+    <div class="card-icon"><i class="ti ti-bell-ringing" aria-hidden="true"></i></div>
+    <div class="card-title">Regional alert system</div>
+    <div class="card-desc">Push + email alerts when disease detected in your region. Preventive action guide included.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I integrate satellite NDVI imagery into my farming app?')">
+    <div class="card-icon"><i class="ti ti-satellite" aria-hidden="true"></i></div>
+    <div class="card-title">Satellite NDVI view</div>
+    <div class="card-desc">Vegetation health heatmap from Sentinel-2 data. Overlay on plot map. Early stress detection.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div class="phase-header p3">
+  <span class="phase-badge">Phase 3</span>
+  <span class="phase-title">AI-powered premium features</span>
+  <span class="phase-sub">Weeks 15–24</span>
+</div>
+<div class="cards">
+  <div class="card" onclick="sendPrompt('How do I build a pest lifecycle tracker that models insect emergence over time?')">
+    <div class="card-icon"><i class="ti ti-bug" aria-hidden="true"></i></div>
+    <div class="card-title">Pest lifecycle tracker</div>
+    <div class="card-desc">Model insect generation emergence. Act at most vulnerable stage. Growing-degree-day powered.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How can I add Grad-CAM visual explanations to my disease detection app?')">
+    <div class="card-icon"><i class="ti ti-eye-search" aria-hidden="true"></i></div>
+    <div class="card-title">Grad-CAM explainability</div>
+    <div class="card-desc">Highlight exactly where on the leaf the model sees disease. Trust-building overlay on result.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I build a treatment product marketplace for agrochemical retailers in my farming app?')">
+    <div class="card-icon"><i class="ti ti-shopping-cart" aria-hidden="true"></i></div>
+    <div class="card-title">Retailer marketplace</div>
+    <div class="card-desc">Recommend local agro-stores with relevant products. Retailer listing portal. Affiliate potential.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I implement a generative AI garden design tool using Stable Diffusion or DALL-E?')">
+    <div class="card-icon"><i class="ti ti-wand" aria-hidden="true"></i></div>
+    <div class="card-title">AI garden designer</div>
+    <div class="card-desc">Upload photo of your plot. Generate redesigned layouts using gen-AI. Companion planting suggestions.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I build a yield prediction feature using tabular regression in my farming app?')">
+    <div class="card-icon"><i class="ti ti-chart-line" aria-hidden="true"></i></div>
+    <div class="card-title">Yield prediction</div>
+    <div class="card-desc">Estimate harvest based on disease history, weather, soil data. Tabular regression model.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I add a community forum to my plant disease app where users share findings?')">
+    <div class="card-icon"><i class="ti ti-messages" aria-hidden="true"></i></div>
+    <div class="card-title">Community & forum</div>
+    <div class="card-desc">Farmers share outbreaks, tips, photos. Upvoting. AI-moderated. Disease heatmap from crowd data.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div class="phase-header p4">
+  <span class="phase-badge">Phase 4</span>
+  <span class="phase-title">Uniquely new features — stand out</span>
+  <span class="phase-sub">Weeks 25+</span>
+</div>
+<div class="cards">
+  <div class="card" onclick="sendPrompt('How do I build a disease progression timeline that tracks how a plant disease worsens over time?')">
+    <div class="card-icon"><i class="ti ti-timeline" aria-hidden="true"></i></div>
+    <div class="card-title">Disease progression tracker</div>
+    <div class="card-desc">Re-scan same plant over days. Visual timeline showing disease getting better or worse. Treatment efficacy score.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I add voice input to a farming app so users can log scouting notes hands-free?')">
+    <div class="card-icon"><i class="ti ti-microphone" aria-hidden="true"></i></div>
+    <div class="card-title">Voice scouting assistant</div>
+    <div class="card-desc">Farmers speak notes hands-free while in the field. Whisper API transcription + AI structuring.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I build offline detection mode in React Native that works without internet?')">
+    <div class="card-icon"><i class="ti ti-wifi-off" aria-hidden="true"></i></div>
+    <div class="card-title">Full offline mode</div>
+    <div class="card-desc">On-device TFLite model. Scan without internet. Sync when connected. Critical for rural farms.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I build a treatment outcome feedback loop to improve disease recommendations over time?')">
+    <div class="card-icon"><i class="ti ti-recycle" aria-hidden="true"></i></div>
+    <div class="card-title">Treatment feedback loop</div>
+    <div class="card-desc">Users rate if treatment worked. Data feeds back to improve recommendations. Closes the loop.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I generate a digital crop health certificate PDF from scan history?')">
+    <div class="card-icon"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+    <div class="card-title">Crop health certificate</div>
+    <div class="card-desc">Auto-generate PDF health report for a plot. Useful for export compliance, insurance, audits.</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I build a multilingual farming app that works in Hindi, Marathi, and other Indian languages?')">
+    <div class="card-icon"><i class="ti ti-language" aria-hidden="true"></i></div>
+    <div class="card-title">Multilingual support</div>
+    <div class="card-desc">Hindi, Marathi, Telugu, etc. i18n framework. AI-translated disease names and treatments.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div class="section-label">Model strategy</div>
+<div class="model-box">
+  <div class="model-row">
+    <span class="model-tag keep">Keep</span>
+    <div><div class="model-title">ResNet50 + SupCon + Weighted CE (your current model)</div><div class="model-text">Works well for disease classification on tomato leaves. Keep as your core detection model, deployed via FastAPI. Good accuracy, well-studied architecture.</div></div>
+  </div>
+  <div class="model-row">
+    <span class="model-tag improve">Improve</span>
+    <div><div class="model-title">Add test-time augmentation (TTA)</div><div class="model-text">Average predictions over flipped/rotated crops of the same image. Free +2–3% accuracy boost, no retraining needed.</div></div>
+  </div>
+  <div class="model-row">
+    <span class="model-tag improve">Improve</span>
+    <div><div class="model-title">Calibrate confidence scores (temperature scaling)</div><div class="model-text">Your softmax confidence is currently overconfident. Add a post-hoc temperature scaling layer so 90% confidence actually means 90% correct.</div></div>
+  </div>
+  <div class="model-row">
+    <span class="model-tag improve">Improve</span>
+    <div><div class="model-title">Export to TorchScript / ONNX → TFLite</div><div class="model-text">Required for offline mobile detection. ONNX → TFLite pipeline. Quantize INT8 for speed without accuracy loss.</div></div>
+  </div>
+  <div class="model-row">
+    <span class="model-tag new">New model</span>
+    <div><div class="model-title">YOLOv8 for in-field detection (Phase 3)</div><div class="model-text">Your current model needs a clean cropped leaf. YOLOv8 detects disease spots directly on a full plant photo. Needed for the satellite + in-field scanning features. Train on Plant Village + your data.</div></div>
+  </div>
+  <div class="model-row">
+    <span class="model-tag new">New model</span>
+    <div><div class="model-title">Tabular regression for yield prediction (Phase 3)</div><div class="model-text">LightGBM or XGBoost on weather × scan history × soil features. Separate from your vision model entirely. Fast to train once you have user data.</div></div>
+  </div>
+</div>
+
+<div class="section-label">Key integrations needed</div>
+<div class="tag-row">
+  <span class="tag">OpenWeatherMap API</span>
+  <span class="tag">Sentinel Hub (satellite NDVI)</span>
+  <span class="tag">Firebase Cloud Messaging</span>
+  <span class="tag">Expo Push Notifications</span>
+  <span class="tag">Cloudflare R2 (model storage)</span>
+  <span class="tag">Whisper API (voice)</span>
+  <span class="tag">Stripe (monetization)</span>
+  <span class="tag">Google OAuth</span>
+  <span class="tag">MapLibre / Leaflet (maps)</span>
+  <span class="tag">Celery + Redis (async jobs)</span>
+</div>
+
+</div>
