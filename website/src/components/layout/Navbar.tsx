@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Leaf, Scan, History, LayoutDashboard, Settings, LogOut, Menu, X, ChevronRight, MapPin, Bell } from 'lucide-react';
+import { Leaf, Scan, History, LayoutDashboard, Settings, LogOut, Menu, X, ChevronRight, MapPin, Bell, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useStore } from '../../store';
 import toast from 'react-hot-toast';
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/scan', icon: Scan, label: 'Scan Leaf' },
   { to: '/plots', icon: MapPin, label: 'My Plots' },
   { to: '/history', icon: History, label: 'History' },
+  { to: '/community', icon: Users, label: 'Community' },
 ];
 
 export default function Navbar() {

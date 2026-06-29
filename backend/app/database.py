@@ -58,6 +58,30 @@ class Alert(Base):
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class CommunityPost(Base):
+    __tablename__ = 'community_posts'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(36), index=True)
+    scan_id = Column(String(36), nullable=True) # Optional linked scan
+    title = Column(String(200))
+    content = Column(Text)
+    upvotes = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class CommunityComment(Base):
+    __tablename__ = 'community_comments'
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, index=True)
+    user_id = Column(String(36))
+    content = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class CommunityUpvote(Base):
+    __tablename__ = 'community_upvotes'
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, index=True)
+    user_id = Column(String(36), index=True)
+
 class ModelVersion(Base):
     """Track model versions"""
     __tablename__ = 'model_versions'
@@ -463,6 +487,107 @@ class Database:
             alert.is_read = True
             session.commit()
             return True
+        finally:
+            session.close()
+
+    # --- Community Forum ---
+    async def get_community_posts(self, user_id: str, limit: int = 50) -> List[Dict]:
+        session = self.SessionLocal()
+        try:
+            posts = session.query(CommunityPost).order_by(CommunityPost.created_at.desc()).limit(limit).all()
+            result = []
+            for p in posts:
+                # Get author name
+                author = session.query(User).filter(User.id == p.user_id).first()
+                # Get comment count
+                comment_count = session.query(CommunityComment).filter(CommunityComment.post_id == p.id).count()
+                
+                # Check if current user upvoted
+                is_upvoted = session.query(CommunityUpvote).filter_by(post_id=p.id, user_id=user_id).first() is not None
+                
+                scan_data = None
+                if p.scan_id:
+                    scan = session.query(Prediction).filter(Prediction.scan_id == p.scan_id).first()
+                    if scan:
+                        scan_data = {
+                            "id": scan.scan_id,
+                            "disease": scan.disease,
+                            "confidence": scan.confidence,
+                            "image_url": scan.image_url
+                        }
+                
+                result.append({
+                    "id": p.id,
+                    "title": p.title,
+                    "content": p.content,
+                    "upvotes": p.upvotes,
+                    "is_upvoted": is_upvoted,
+                    "created_at": p.created_at.isoformat() + "Z",
+                    "author_name": author.name if author else "Unknown",
+                    "comment_count": comment_count,
+                    "scan": scan_data
+                })
+            return result
+        finally:
+            session.close()
+
+    async def create_community_post(self, user_id: str, title: str, content: str, scan_id: str = None) -> int:
+        session = self.SessionLocal()
+        try:
+            post = CommunityPost(user_id=user_id, title=title, content=content, scan_id=scan_id)
+            session.add(post)
+            session.commit()
+            return post.id
+        finally:
+            session.close()
+
+    async def toggle_upvote(self, post_id: int, user_id: str):
+        session = self.SessionLocal()
+        try:
+            existing = session.query(CommunityUpvote).filter_by(post_id=post_id, user_id=user_id).first()
+            post = session.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+            if not post:
+                return False
+                
+            if existing:
+                session.delete(existing)
+                post.upvotes = max(0, post.upvotes - 1)
+                is_upvoted = False
+            else:
+                upvote = CommunityUpvote(post_id=post_id, user_id=user_id)
+                session.add(upvote)
+                post.upvotes += 1
+                is_upvoted = True
+                
+            session.commit()
+            return {"status": "success", "is_upvoted": is_upvoted, "upvotes": post.upvotes}
+        finally:
+            session.close()
+
+    async def get_post_comments(self, post_id: int) -> List[Dict]:
+        session = self.SessionLocal()
+        try:
+            comments = session.query(CommunityComment).filter(CommunityComment.post_id == post_id).order_by(CommunityComment.created_at.asc()).all()
+            result = []
+            for c in comments:
+                author = session.query(User).filter(User.id == c.user_id).first()
+                result.append({
+                    "id": c.id,
+                    "content": c.content,
+                    "created_at": c.created_at.isoformat() + "Z",
+                    "author_name": author.name if author else "Unknown"
+                })
+            return result
+        finally:
+            session.close()
+
+    async def create_comment(self, post_id: int, user_id: str, content: str) -> int:
+        session = self.SessionLocal()
+        try:
+            comment = CommunityComment(post_id=post_id, user_id=user_id, content=content)
+            session.add(comment)
+            session.commit()
+            return comment.id
         finally:
             session.close()
 

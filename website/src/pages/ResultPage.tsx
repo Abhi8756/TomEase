@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, AlertTriangle, CheckCircle, Scan, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, CheckCircle, Scan, ChevronRight, Eye, EyeOff, Users } from 'lucide-react';
 import { useStore } from '../store';
 import { useState } from 'react';
 import { API_BASE } from '../services/api';
@@ -166,12 +166,15 @@ export default function ResultPage() {
 
       {/* Action buttons */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-        className="mt-6 flex gap-3">
+        className="mt-6 flex flex-col sm:flex-row gap-3">
         <button onClick={() => navigate('/scan')} className="btn-secondary flex-1">
-          Scan Another Leaf
+          New Scan
+        </button>
+        <button onClick={() => navigate('/community', { state: { scan_id: latestResult.scan_id, prefill: `I just scanned my tomato plant and got ${latestResult.disease.replace(/_/g, ' ')}. Does anyone have advice?` } })} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20 flex-1 flex items-center justify-center gap-2">
+          <Users className="w-5 h-5" /> Share to Community
         </button>
         <button onClick={() => navigate('/history')} className="btn-primary flex-1">
-          View History
+          History
         </button>
       </motion.div>
     </div>

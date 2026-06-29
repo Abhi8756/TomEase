@@ -78,6 +78,14 @@ export const plotsApi = {
   getNdvi: (id: string) => api.get(`/plots/${id}/ndvi`),
 };
 
+export const communityApi = {
+  getPosts: () => api.get('/community/posts'),
+  createPost: (data: { title: string, content: string, scan_id?: string }) => api.post('/community/posts', data),
+  upvotePost: (id: number) => api.post(`/community/posts/${id}/upvote`),
+  getComments: (id: number) => api.get(`/community/posts/${id}/comments`),
+  createComment: (id: number, content: string) => api.post(`/community/posts/${id}/comments`, { content }),
+};
+
 // ─── Model ───────────────────────────────────────────
 export const modelApi = {
   info: () => api.get('/model/info'),

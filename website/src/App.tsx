@@ -12,6 +12,7 @@ import HistoryPage from './pages/HistoryPage';
 import AdminPage from './pages/AdminPage';
 import PlotsPage from './pages/PlotsPage';
 import PlotDetailsPage from './pages/PlotDetailsPage';
+import CommunityPage from './pages/CommunityPage';
 import Navbar from './components/layout/Navbar';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -92,6 +93,11 @@ export default function App() {
         <Route path="/plots/:id" element={
           <ProtectedRoute>
             <AppLayout><PlotDetailsPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/community" element={
+          <ProtectedRoute>
+            <AppLayout><CommunityPage /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/admin" element={

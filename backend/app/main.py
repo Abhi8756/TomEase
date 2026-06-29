@@ -16,6 +16,7 @@ from .database import database
 from .storage import LocalStorage
 from .auth import router as auth_router, get_current_user
 from .plots import router as plots_router
+from .community import router as community_router
 from .utils import get_recommendations, augment_scan_details, calculate_distance
 
 app = FastAPI(
@@ -38,6 +39,7 @@ from fastapi.staticfiles import StaticFiles
 # Auth routes
 app.include_router(auth_router)
 app.include_router(plots_router)
+app.include_router(community_router)
 
 # Mount local storage for serving GradCAMs if not using cloud R2
 os.makedirs("storage/gradcams", exist_ok=True)
