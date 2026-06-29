@@ -12,6 +12,7 @@
   "dependencies": {
     "autoprefixer": "^10.5.2",
     "axios": "^1.18.1",
+    "dayjs": "^1.11.21",
     "framer-motion": "^12.42.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

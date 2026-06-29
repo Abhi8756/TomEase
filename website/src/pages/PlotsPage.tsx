@@ -16,12 +16,19 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-function LocationPicker({ position, setPosition }: any) {
-  useMapEvents({
+function LocationPicker({ position, setPosition, mapCenter }: any) {
+  const map = useMapEvents({
     click(e) {
       setPosition([e.latlng.lat, e.latlng.lng]);
     },
   });
+  
+  useEffect(() => {
+    if (mapCenter) {
+      map.flyTo(mapCenter, 15);
+    }
+  }, [mapCenter, map]);
+
   return position === null ? null : (
     <Marker position={position}></Marker>
   );
@@ -33,6 +40,7 @@ export default function PlotsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPlotName, setNewPlotName] = useState('');
   const [position, setPosition] = useState<[number, number] | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -60,7 +68,11 @@ export default function PlotsPage() {
       return;
     }
     try {
-      await plotsApi.create(newPlotName, position[0], position[1]);
+      await plotsApi.create({
+        name: newPlotName,
+        latitude: position[0],
+        longitude: position[1]
+      });
       toast.success('Plot created!');
       setShowAddModal(false);
       setNewPlotName('');
@@ -68,6 +80,26 @@ export default function PlotsPage() {
       loadPlots();
     } catch (e) {
       toast.error('Failed to create plot');
+    }
+  };
+
+  const handleUseMyLocation = () => {
+    if (navigator.geolocation) {
+      toast.loading("Locating...", { id: "geo" });
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setPosition([lat, lng]);
+          setMapCenter([lat, lng]);
+          toast.success("Location found!", { id: "geo" });
+        },
+        (err) => {
+          toast.error("Could not get your location.", { id: "geo" });
+        }
+      );
+    } else {
+      toast.error("Geolocation is not supported by your browser.");
     }
   };
 
@@ -146,11 +178,19 @@ export default function PlotsPage() {
               </div>
               
               <div>
-                <label className="block text-xs text-gray-400 uppercase tracking-wider mb-2">Location</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs text-gray-400 uppercase tracking-wider">Location</label>
+                  <button 
+                    onClick={handleUseMyLocation}
+                    className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1"
+                  >
+                    <MapPin className="w-3 h-3" /> Use My Location
+                  </button>
+                </div>
                 <div className="h-64 rounded-xl overflow-hidden border border-white/10">
                   <MapContainer center={[20.5937, 78.9629]} zoom={4} className="w-full h-full">
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    <LocationPicker position={position} setPosition={setPosition} />
+                    <LocationPicker position={position} setPosition={setPosition} mapCenter={mapCenter} />
                   </MapContainer>
                 </div>
               </div>

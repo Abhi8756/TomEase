@@ -77,6 +77,11 @@ export default function App() {
             <AppLayout><PlotsPage /></AppLayout>
           </ProtectedRoute>
         } />
+        <Route path="/plots/:id" element={
+          <ProtectedRoute>
+            <AppLayout><PlotDetailsPage /></AppLayout>
+          </ProtectedRoute>
+        } />
         <Route path="/admin" element={
           <ProtectedRoute>
             <AppLayout><AdminPage /></AppLayout>

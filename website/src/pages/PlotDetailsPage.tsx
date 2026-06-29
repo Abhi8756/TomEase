@@ -14,6 +14,7 @@ export default function PlotDetailsPage() {
   const [plot, setPlot] = useState<any>(null);
   const [scans, setScans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [weather, setWeather] = useState<any>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -21,6 +22,22 @@ export default function PlotDetailsPage() {
       .then(res => {
         setPlot(res.data.plot);
         setScans(res.data.scans);
+        
+        // Fetch real weather if we have coordinates
+        if (res.data.plot.latitude && res.data.plot.longitude) {
+          fetch(`https://api.open-meteo.com/v1/forecast?latitude=${res.data.plot.latitude}&longitude=${res.data.plot.longitude}&current=temperature_2m,weather_code,wind_speed_10m&hourly=uv_index`)
+            .then(r => r.json())
+            .then(data => {
+              const currentHour = new Date().getHours();
+              setWeather({
+                temp: data.current.temperature_2m,
+                wind: data.current.wind_speed_10m,
+                code: data.current.weather_code,
+                uv: data.hourly?.uv_index?.[currentHour] || 0
+              });
+            })
+            .catch(console.error);
+        }
       })
       .catch(err => {
         console.error(err);
@@ -28,6 +45,15 @@ export default function PlotDetailsPage() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  const getWeatherInfo = (code: number) => {
+    if (code === 0) return { text: 'Clear Sky', icon: Sun };
+    if (code <= 3) return { text: 'Partly Cloudy', icon: CloudRain };
+    if (code <= 48) return { text: 'Fog', icon: Wind };
+    if (code <= 65) return { text: 'Rain', icon: CloudRain };
+    if (code > 65) return { text: 'Storm/Snow', icon: CloudRain };
+    return { text: 'Unknown', icon: Sun };
+  };
 
   const generateReport = () => {
     const doc = new jsPDF();
@@ -161,37 +187,48 @@ export default function PlotDetailsPage() {
             </p>
           </div>
 
-          {/* Hyper-local Weather (Placeholder) */}
+          {/* Hyper-local Weather */}
           <div className="glass p-6 rounded-2xl relative overflow-hidden group hover:border-blue-500/30 transition-colors">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 to-transparent" />
             <div className="relative">
               <h2 className="text-lg font-bold text-gray-300 mb-4 flex items-center gap-2">
                 <CloudRain className="w-5 h-5 text-blue-400" />
-                Field Weather
+                Live Field Weather
               </h2>
               
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <div className="text-4xl font-black text-white">24°C</div>
-                  <div className="text-sm text-blue-400 mt-1">Light Rain expected</div>
-                </div>
-                <CloudRain className="w-12 h-12 text-gray-400" />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-dark-900/50 p-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
-                    <Wind className="w-3 h-3" /> Wind
+              {weather ? (
+                <>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <div className="text-4xl font-black text-white">{weather.temp}°C</div>
+                      <div className="text-sm text-blue-400 mt-1">{getWeatherInfo(weather.code).text}</div>
+                    </div>
+                    {(() => {
+                      const Icon = getWeatherInfo(weather.code).icon;
+                      return <Icon className="w-12 h-12 text-blue-400" />;
+                    })()}
                   </div>
-                  <div className="text-white font-medium">12 km/h</div>
-                </div>
-                <div className="bg-dark-900/50 p-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
-                    <Sun className="w-3 h-3" /> UV Index
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-dark-900/50 p-3 rounded-xl border border-white/5">
+                      <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                        <Wind className="w-3 h-3" /> Wind
+                      </div>
+                      <div className="text-white font-medium">{weather.wind} km/h</div>
+                    </div>
+                    <div className="bg-dark-900/50 p-3 rounded-xl border border-white/5">
+                      <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                        <Sun className="w-3 h-3" /> UV Index
+                      </div>
+                      <div className="text-white font-medium">{weather.uv}</div>
+                    </div>
                   </div>
-                  <div className="text-white font-medium">Moderate</div>
+                </>
+              ) : (
+                <div className="text-gray-400 text-sm py-4">
+                  {plot.latitude ? 'Loading weather data...' : 'Add GPS coordinates to this plot to see live weather.'}
                 </div>
-              </div>
+              )}
             </div>
           </div>
           
