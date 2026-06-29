@@ -24,6 +24,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user, authLoading } = useStore();
+  if (authLoading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
@@ -83,9 +95,9 @@ export default function App() {
           </ProtectedRoute>
         } />
         <Route path="/admin" element={
-          <ProtectedRoute>
+          <AdminRoute>
             <AppLayout><AdminPage /></AppLayout>
-          </ProtectedRoute>
+          </AdminRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

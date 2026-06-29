@@ -71,6 +71,8 @@ export const plotsApi = {
   create: (data: { name: string; latitude?: number; longitude?: number }) => api.post('/plots/', data),
   getAll: () => api.get('/plots/'),
   getById: (id: string) => api.get(`/plots/${id}`),
+  getMembers: (id: string) => api.get(`/plots/${id}/members`),
+  inviteMember: (id: string, email: string) => api.post(`/plots/${id}/members`, { email }),
 };
 
 // ─── Model ───────────────────────────────────────────

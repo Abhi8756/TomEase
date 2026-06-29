@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Download, MapPin, CloudRain, Sun, Wind, Activity, Image as ImageIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Download, MapPin, CloudRain, Sun, Wind, Activity, Image as ImageIcon, Users, Plus, X } from 'lucide-react';
 import { plotsApi, API_BASE } from '../services/api';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -17,6 +17,10 @@ export default function PlotDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [weather, setWeather] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
   
   const setLatestResult = useStore(state => state.setLatestResult);
 
@@ -26,6 +30,9 @@ export default function PlotDetailsPage() {
       .then(res => {
         setPlot(res.data.plot);
         setScans(res.data.scans);
+        
+        // Fetch members
+        plotsApi.getMembers(id).then(m => setMembers(m.data)).catch(console.error);
         
         // Fetch real weather if we have coordinates
         if (res.data.plot.latitude && res.data.plot.longitude) {
@@ -57,6 +64,25 @@ export default function PlotDetailsPage() {
     if (code <= 65) return { text: 'Rain', icon: CloudRain };
     if (code > 65) return { text: 'Storm/Snow', icon: CloudRain };
     return { text: 'Unknown', icon: Sun };
+  };
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !inviteEmail.trim()) return;
+    
+    setInviting(true);
+    try {
+      await plotsApi.inviteMember(id, inviteEmail.trim());
+      toast.success(`Invited ${inviteEmail} successfully!`);
+      setInviteEmail('');
+      setShowInvite(false);
+      const res = await plotsApi.getMembers(id);
+      setMembers(res.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to invite member');
+    } finally {
+      setInviting(false);
+    }
   };
 
   const generateReport = () => {
@@ -257,6 +283,38 @@ export default function PlotDetailsPage() {
             </div>
           </div>
           
+          {/* Team Members Widget */}
+          <div className="glass p-6 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-300 flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-400" />
+                Team ({members.length})
+              </h2>
+              {plot.role === 'owner' && (
+                <button 
+                  onClick={() => setShowInvite(true)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors text-emerald-400"
+                  title="Invite Member"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <div className="space-y-3">
+              {members.map(member => (
+                <div key={member.id} className="flex items-center justify-between bg-dark-900/50 p-3 rounded-xl border border-white/5">
+                  <div className="truncate pr-2">
+                    <p className="text-sm font-medium text-white truncate">{member.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{member.email}</p>
+                  </div>
+                  <span className={`text-[10px] px-2 py-1 rounded-full uppercase tracking-wider font-bold flex-shrink-0 ${member.role === 'owner' ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
+                    {member.role}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
         </div>
       </div>
 
@@ -275,6 +333,54 @@ export default function PlotDetailsPage() {
           />
         </div>
       )}
+
+      {/* Invite Modal */}
+      <AnimatePresence>
+        {showInvite && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 border-b border-white/10 flex justify-between items-center bg-dark-900/50">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-emerald-400" />
+                  Invite Team Member
+                </h3>
+                <button onClick={() => setShowInvite(false)} className="text-gray-400 hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleInvite} className="p-6 space-y-4">
+                <p className="text-sm text-gray-400 mb-4">
+                  Invite an agronomist or farm worker to collaborate on this plot. They will be able to view details and add their own scans.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">User Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="input-field"
+                    placeholder="farmer@example.com"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button type="button" onClick={() => setShowInvite(false)} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={inviting} className="btn-primary flex items-center gap-2">
+                    {inviting ? 'Inviting...' : 'Send Invite'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

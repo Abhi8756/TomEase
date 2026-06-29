@@ -30,10 +30,20 @@ class Plot(Base):
     __tablename__ = 'plots'
     
     id = Column(String(36), primary_key=True)
-    user_id = Column(String(36), index=True)
+    user_id = Column(String(36), index=True) # The owner
     name = Column(String(255))
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class PlotMember(Base):
+    """Store members of a plot"""
+    __tablename__ = 'plot_members'
+    
+    id = Column(Integer, primary_key=True)
+    plot_id = Column(String(36), index=True)
+    user_id = Column(String(36), index=True)
+    role = Column(String(50), default="member")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class ModelVersion(Base):
@@ -262,17 +272,30 @@ class Database:
             session.close()
 
     async def get_user_plots(self, user_id: str) -> List[Dict]:
-        """Get all plots for a specific user"""
+        """Get all plots for a specific user (owned and shared)"""
         session = self.SessionLocal()
         try:
-            plots = session.query(Plot).filter(Plot.user_id == user_id).order_by(Plot.created_at.desc()).all()
+            # Plots where user is owner
+            owned = session.query(Plot).filter(Plot.user_id == user_id).all()
+            
+            # Plots where user is a member
+            member_links = session.query(PlotMember).filter(PlotMember.user_id == user_id).all()
+            member_plot_ids = [m.plot_id for m in member_links]
+            shared = session.query(Plot).filter(Plot.id.in_(member_plot_ids)).all()
+            
+            # Combine and deduplicate
+            all_plots = {p.id: p for p in (owned + shared)}
+            plots = list(all_plots.values())
+            plots.sort(key=lambda x: x.created_at, reverse=True)
+            
             return [
                 {
                     "id": p.id,
                     "name": p.name,
                     "latitude": p.latitude,
                     "longitude": p.longitude,
-                    "created_at": p.created_at.isoformat()
+                    "created_at": p.created_at.isoformat(),
+                    "role": "owner" if p.user_id == user_id else "member"
                 }
                 for p in plots
             ]
@@ -280,29 +303,43 @@ class Database:
             session.close()
 
     async def get_plot_by_id(self, plot_id: str, user_id: str) -> Optional[Dict]:
-        """Get a single plot by ID"""
+        """Get a single plot by ID if user has access"""
         session = self.SessionLocal()
         try:
-            plot = session.query(Plot).filter(Plot.id == plot_id, Plot.user_id == user_id).first()
+            plot = session.query(Plot).filter(Plot.id == plot_id).first()
             if not plot:
                 return None
+            
+            # Check access
+            if plot.user_id != user_id:
+                member = session.query(PlotMember).filter(PlotMember.plot_id == plot_id, PlotMember.user_id == user_id).first()
+                if not member:
+                    return None
+            
             return {
                 "id": plot.id,
                 "name": plot.name,
                 "latitude": plot.latitude,
                 "longitude": plot.longitude,
-                "created_at": plot.created_at.isoformat()
+                "created_at": plot.created_at.isoformat(),
+                "role": "owner" if plot.user_id == user_id else "member",
+                "owner_id": plot.user_id
             }
         finally:
             session.close()
 
     async def get_scans_by_plot(self, plot_id: str, user_id: str) -> List[Dict]:
-        """Get all scans for a specific plot"""
+        """Get all scans for a specific plot if user has access"""
         session = self.SessionLocal()
         try:
-            plot = session.query(Plot).filter(Plot.id == plot_id, Plot.user_id == user_id).first()
+            # Reuse get_plot_by_id logic for access check
+            plot = session.query(Plot).filter(Plot.id == plot_id).first()
             if not plot:
                 return []
+            if plot.user_id != user_id:
+                member = session.query(PlotMember).filter(PlotMember.plot_id == plot_id, PlotMember.user_id == user_id).first()
+                if not member:
+                    return []
             
             scans = session.query(Prediction).filter(Prediction.plot_id == plot_id).order_by(Prediction.timestamp.desc()).all()
             return [
@@ -316,6 +353,54 @@ class Database:
                 }
                 for p in scans
             ]
+        finally:
+            session.close()
+            
+    async def add_plot_member(self, plot_id: str, user_id: str, role: str = "member") -> bool:
+        """Add a user to a plot"""
+        session = self.SessionLocal()
+        try:
+            # Check if already a member
+            existing = session.query(PlotMember).filter(PlotMember.plot_id == plot_id, PlotMember.user_id == user_id).first()
+            if existing:
+                return False
+                
+            member = PlotMember(plot_id=plot_id, user_id=user_id, role=role)
+            session.add(member)
+            session.commit()
+            return True
+        finally:
+            session.close()
+            
+    async def get_plot_members(self, plot_id: str) -> List[Dict]:
+        """Get all members of a plot including the owner"""
+        session = self.SessionLocal()
+        try:
+            plot = session.query(Plot).filter(Plot.id == plot_id).first()
+            if not plot:
+                return []
+                
+            owner = session.query(User).filter(User.id == plot.user_id).first()
+            members = session.query(PlotMember, User).join(User, PlotMember.user_id == User.id).filter(PlotMember.plot_id == plot_id).all()
+            
+            result = []
+            if owner:
+                result.append({
+                    "id": owner.id,
+                    "name": owner.name,
+                    "email": owner.email,
+                    "role": "owner"
+                })
+                
+            for member_link, user in members:
+                result.append({
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "role": member_link.role
+                })
+                
+            return result
         finally:
             session.close()
 

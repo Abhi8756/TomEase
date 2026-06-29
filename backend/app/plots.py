@@ -14,6 +14,9 @@ class PlotCreate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
+class InviteMember(BaseModel):
+    email: str
+
 class PlotResponse(BaseModel):
     id: str
     name: str
@@ -59,3 +62,29 @@ async def get_plot_details(plot_id: str, current_user: dict = Depends(get_curren
         "plot": plot,
         "scans": [augment_scan_details(scan) for scan in scans]
     }
+
+@router.get("/{plot_id}/members")
+async def get_plot_members(plot_id: str, current_user: dict = Depends(get_current_user)):
+    plot = await db.get_plot_by_id(plot_id, current_user["id"])
+    if not plot:
+        raise HTTPException(404, "Plot not found or access denied")
+    return await db.get_plot_members(plot_id)
+
+@router.post("/{plot_id}/members")
+async def invite_member(plot_id: str, req: InviteMember, current_user: dict = Depends(get_current_user)):
+    plot = await db.get_plot_by_id(plot_id, current_user["id"])
+    if not plot or plot.get("role") != "owner":
+        raise HTTPException(403, "Only the plot owner can invite members")
+    
+    user = await db.get_user_by_email(req.email)
+    if not user:
+        raise HTTPException(404, "User not found with this email")
+        
+    if user["id"] == current_user["id"]:
+        raise HTTPException(400, "You cannot invite yourself")
+        
+    success = await db.add_plot_member(plot_id, user["id"], "member")
+    if not success:
+        raise HTTPException(400, "User is already a member of this plot")
+        
+    return {"status": "success", "message": f"Successfully invited {req.email}"}
