@@ -14,6 +14,7 @@ export interface ScanResult {
   confidence: number;
   confidence_calibrated: number;
   gradcam_url: string;
+  severity: string;
   recommendations: string[];
   is_reliable: boolean;
   warning?: string;

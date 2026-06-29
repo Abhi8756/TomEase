@@ -64,16 +64,32 @@ export const predictApi = {
 export const modelApi = {
   info: () => api.get('/model/info'),
   health: () => api.get('/health'),
-  history: (apiKey: string) =>
-    api.get('/admin/model-history', { headers: { 'X-API-Key': apiKey } }),
-  upload: (file: File, apiKey: string) => {
+  history: () => api.get('/admin/model-history'),
+  upload: (file: File) => {
     const form = new FormData();
     form.append('file', file);
     return api.post('/admin/upload-model', form, {
-      headers: { 'Content-Type': 'multipart/form-data', 'X-API-Key': apiKey },
+      headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 300000, // 5 min for large model files
     });
   },
+  download: async (version: string) => {
+    const token = localStorage.getItem('access_token');
+    // Using fetch so we can trigger a browser download instead of handling blobs in axios
+    const response = await fetch(`${API_BASE}/admin/download-model/${version}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Download failed');
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `model_${version}.pth`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
 };
 
 export default api;

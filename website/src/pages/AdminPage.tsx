@@ -1,14 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
-import { Shield, Upload, CheckCircle, XCircle, RefreshCw, Key, AlertTriangle, Cpu, Zap } from 'lucide-react';
+import { Shield, Upload, CheckCircle, XCircle, RefreshCw, Key, AlertTriangle, Cpu, Zap, Download } from 'lucide-react';
 import { modelApi } from '../services/api';
 import { useStore } from '../store';
 import toast from 'react-hot-toast';
 
 export default function AdminPage() {
   const { user } = useStore();
-  const [apiKey, setApiKey] = useState('');
   const [modelFile, setModelFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
@@ -23,16 +22,17 @@ export default function AdminPage() {
   });
 
   const uploadModel = async () => {
-    if (!modelFile || !apiKey) {
-      toast.error('Provide both the model file and API key');
+    if (!modelFile) {
+      toast.error('Select a model file first');
       return;
     }
     setUploading(true);
     setUploadResult(null);
     try {
-      const { data } = await modelApi.upload(modelFile, apiKey);
+      const { data } = await modelApi.upload(modelFile);
       setUploadResult(data);
       toast.success(`Model ${data.version} uploaded and hot-swapped!`);
+      fetchHistory();
     } catch (err: any) {
       const msg = err?.response?.data?.detail || 'Upload failed';
       toast.error(msg);
@@ -43,19 +43,34 @@ export default function AdminPage() {
   };
 
   const fetchHistory = async () => {
-    if (!apiKey) { toast.error('Enter API key first'); return; }
     setHistoryLoading(true);
     try {
       const [histRes, infoRes] = await Promise.all([
-        modelApi.history(apiKey),
+        modelApi.history(),
         modelApi.info(),
       ]);
       setHistory(histRes.data.versions || []);
       setModelInfo(infoRes.data);
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to fetch');
+      toast.error(err?.response?.data?.detail || 'Failed to fetch history');
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchHistory();
+    }
+  }, [user]);
+
+  const downloadCurrentModel = async () => {
+    try {
+      toast.loading('Starting download...', { id: 'download' });
+      await modelApi.download('current');
+      toast.success('Download started!', { id: 'download' });
+    } catch (err) {
+      toast.error('Failed to download model', { id: 'download' });
     }
   };
 
@@ -92,34 +107,22 @@ export default function AdminPage() {
           </p>
         </div>
 
-        {/* API Key */}
-        <div className="glass p-6 mb-6">
-          <h2 className="font-bold text-white mb-4 flex items-center gap-2">
-            <Key className="w-4 h-4 text-amber-400" />
-            Admin API Key
-          </h2>
-          <div className="flex gap-3">
-            <input type="password" placeholder="Enter your admin API key (from .env file)"
-              value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-              className="input-field flex-1" />
-            <button onClick={fetchHistory} disabled={historyLoading || !apiKey}
-              className="btn-secondary flex items-center gap-2 whitespace-nowrap">
-              {historyLoading
-                ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                : <RefreshCw className="w-4 h-4" />
-              }
-              Load Status
-            </button>
-          </div>
-        </div>
+
 
         {/* Current model info */}
         {modelInfo && (
           <div className="glass p-6 mb-6 border border-primary-500/20">
-            <h2 className="font-bold text-white mb-4 flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-primary-400" />
-              Current Model
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-white flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-primary-400" />
+                Current Model
+              </h2>
+              <button onClick={downloadCurrentModel}
+                className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 border-primary-500/30 hover:border-primary-500/60">
+                <Download className="w-3.5 h-3.5 text-primary-400" />
+                Download .pth
+              </button>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: 'Version', value: modelInfo.version },
@@ -161,7 +164,7 @@ export default function AdminPage() {
             )}
           </div>
 
-          <button onClick={uploadModel} disabled={!modelFile || !apiKey || uploading}
+          <button onClick={uploadModel} disabled={!modelFile || uploading}
             className="btn-primary w-full flex items-center justify-center gap-2">
             {uploading ? (
               <>

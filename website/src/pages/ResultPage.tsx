@@ -38,9 +38,9 @@ export default function ResultPage() {
     );
   }
 
-  const { disease, confidence, confidence_calibrated, gradcam_url, recommendations, is_reliable, warning, image_uri } = latestResult;
+  const { disease, confidence, confidence_calibrated, gradcam_url, severity, recommendations, is_reliable, warning, image_uri } = latestResult;
   const color = diseaseColors[disease] || '#6b7280';
-  const info = diseaseInfo[disease] || { severity: 'Unknown', cause: 'Unknown' };
+  const info = diseaseInfo[disease] || { cause: 'Unknown' };
   const confPct = (confidence * 100).toFixed(1);
   const calPct = (confidence_calibrated * 100).toFixed(1);
   const isHealthy = disease === 'Healthy';
@@ -110,7 +110,7 @@ export default function ResultPage() {
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="bg-white/5 rounded-xl p-3">
                 <div className="text-xs text-gray-500 mb-1">Severity</div>
-                <div className="font-bold text-sm" style={{ color }}>{info.severity}</div>
+                <div className="font-bold text-sm" style={{ color }}>{severity || 'Unknown'}</div>
               </div>
               <div className="bg-white/5 rounded-xl p-3">
                 <div className="text-xs text-gray-500 mb-1">Status</div>

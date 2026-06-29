@@ -1,17 +1,55 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Camera, X, Leaf, AlertCircle, Zap } from 'lucide-react';
+import { Upload, Camera, X, Leaf, AlertCircle, Zap, Crop as CropIcon } from 'lucide-react';
+import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { predictApi } from '../services/api';
 import { useStore } from '../store';
 import toast from 'react-hot-toast';
+
+// Helper to get cropped image
+const getCroppedImg = (image: HTMLImageElement, crop: Crop, fileName: string): Promise<File> => {
+  const canvas = document.createElement('canvas');
+  const scaleX = image.naturalWidth / image.width;
+  const scaleY = image.naturalHeight / image.height;
+  canvas.width = crop.width * scaleX;
+  canvas.height = crop.height * scaleY;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) return Promise.reject(new Error('No 2d context'));
+
+  ctx.drawImage(
+    image,
+    crop.x * scaleX,
+    crop.y * scaleY,
+    crop.width * scaleX,
+    crop.height * scaleY,
+    0,
+    0,
+    crop.width * scaleX,
+    crop.height * scaleY
+  );
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) return reject(new Error('Canvas is empty'));
+      resolve(new File([blob], fileName, { type: 'image/jpeg' }));
+    }, 'image/jpeg', 1);
+  });
+};
 
 export default function ScanPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<Crop | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+  
   const { setLatestResult } = useStore();
   const navigate = useNavigate();
 
@@ -19,10 +57,23 @@ export default function ScanPage() {
     const f = accepted[0];
     if (!f) return;
     setFile(f);
+    setCrop(undefined);
+    setCompletedCrop(null);
+    setIsCropping(false);
     const reader = new FileReader();
     reader.onload = (e) => setPreview(e.target?.result as string);
     reader.readAsDataURL(f);
   }, []);
+
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = e.currentTarget;
+    const initialCrop = centerCrop(
+      makeAspectCrop({ unit: '%', width: 90 }, 1, width, height),
+      width,
+      height
+    );
+    setCrop(initialCrop);
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -31,16 +82,30 @@ export default function ScanPage() {
     maxSize: 20 * 1024 * 1024,
   });
 
-  const clearFile = () => { setFile(null); setPreview(null); };
+  const clearFile = () => { 
+    setFile(null); 
+    setPreview(null); 
+    setIsCropping(false);
+  };
 
   const analyze = async () => {
     if (!file) return;
     setLoading(true);
     setProgress(0);
-    // Animate progress bar
+    
+    let fileToUpload = file;
+    // If the user cropped the image, use the cropped version
+    if (isCropping && completedCrop && completedCrop.width > 0 && completedCrop.height > 0 && imgRef.current) {
+      try {
+        fileToUpload = await getCroppedImg(imgRef.current, completedCrop, file.name);
+      } catch (e) {
+        console.error('Failed to crop image', e);
+      }
+    }
+
     const interval = setInterval(() => setProgress(p => Math.min(p + 8, 85)), 200);
     try {
-      const { data } = await predictApi.predict(file);
+      const { data } = await predictApi.predict(fileToUpload);
       clearInterval(interval);
       setProgress(100);
       setLatestResult(data, preview || undefined);
@@ -110,16 +175,53 @@ export default function ScanPage() {
             </motion.div>
           ) : (
             <motion.div key="preview" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-              <div className="relative rounded-2xl overflow-hidden border border-white/10">
-                <img src={preview} alt="Leaf preview" className="w-full object-contain max-h-80 bg-dark-800" />
+              <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-dark-800">
+                {isCropping ? (
+                  <ReactCrop
+                    crop={crop}
+                    onChange={c => setCrop(c)}
+                    onComplete={c => setCompletedCrop(c)}
+                    className="max-h-[60vh] w-full object-contain"
+                  >
+                    <img 
+                      ref={imgRef} 
+                      src={preview} 
+                      alt="Crop preview" 
+                      onLoad={onImageLoad}
+                      className="max-h-[60vh] mx-auto object-contain" 
+                    />
+                  </ReactCrop>
+                ) : (
+                  <img src={preview} alt="Leaf preview" className="w-full object-contain max-h-[60vh]" />
+                )}
+                
                 <button onClick={clearFile}
                   className="absolute top-3 right-3 w-8 h-8 bg-dark-900/80 backdrop-blur-sm rounded-lg 
-                           flex items-center justify-center text-gray-400 hover:text-white hover:bg-red-500/20 transition-all">
+                           flex items-center justify-center text-gray-400 hover:text-white hover:bg-red-500/20 transition-all z-10">
                   <X className="w-4 h-4" />
                 </button>
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-dark-900/90 to-transparent p-4">
-                  <p className="text-white text-sm font-medium truncate">{file?.name}</p>
-                  <p className="text-gray-400 text-xs">{((file?.size || 0) / 1024).toFixed(0)} KB</p>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-dark-900/90 to-transparent p-4 flex justify-between items-end">
+                  <div>
+                    <p className="text-white text-sm font-medium truncate">{file?.name}</p>
+                    <p className="text-gray-400 text-xs">{((file?.size || 0) / 1024).toFixed(0)} KB</p>
+                  </div>
+                  {!isCropping && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setIsCropping(true); }}
+                      className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5"
+                    >
+                      <CropIcon className="w-3.5 h-3.5" />
+                      Crop Image
+                    </button>
+                  )}
+                  {isCropping && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setIsCropping(false); }}
+                      className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                    >
+                      Cancel Crop
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
