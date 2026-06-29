@@ -16,6 +16,7 @@ from .database import database
 from .storage import LocalStorage
 from .auth import router as auth_router, get_current_user
 from .plots import router as plots_router
+from .utils import get_recommendations, augment_scan_details
 
 app = FastAPI(
     title="Tomato Leaf Disease Detection API",
@@ -298,49 +299,9 @@ async def rollback_model(
 async def get_recent_scans(limit: int = 50):
     """Get recent predictions for analytics"""
     scans = await database.get_recent_scans(limit)
-    return {"scans": scans}
+    return {"scans": [augment_scan_details(scan) for scan in scans]}
 
-def get_recommendations(disease: str) -> List[str]:
-    """Get treatment recommendations for each disease"""
-    recommendations = {
-        "Healthy": [
-            "No treatment needed",
-            "Continue regular care and monitoring",
-            "Maintain proper watering and fertilization"
-        ],
-        "Early_Blight": [
-            "Apply chlorothalonil or copper-based fungicide",
-            "Remove and destroy infected leaves",
-            "Improve air circulation around plants",
-            "Avoid overhead watering"
-        ],
-        "Late_Blight": [
-            "Apply fungicide immediately (mancozeb or chlorothalonil)",
-            "Remove all infected plant parts",
-            "Increase spacing between plants",
-            "Monitor weather - disease spreads in cool, wet conditions"
-        ],
-        "Leaf_Mold": [
-            "Reduce humidity around plants",
-            "Apply fungicide (chlorothalonil)",
-            "Improve greenhouse ventilation",
-            "Remove infected leaves"
-        ],
-        "Septoria": [
-            "Apply copper-based fungicide",
-            "Remove bottom leaves touching soil",
-            "Mulch around plants to prevent soil splash",
-            "Rotate crops annually"
-        ],
-        "TYLCV": [
-            "No cure - remove infected plants immediately",
-            "Control whitefly population (insecticide)",
-            "Use reflective mulch to repel whiteflies",
-            "Plant resistant varieties in future"
-        ]
-    }
-    
-    return recommendations.get(disease, ["Consult agricultural expert for treatment"])
+
 
 if __name__ == "__main__":
     import uvicorn

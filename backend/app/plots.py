@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from .auth import get_current_user
 from .database import database as db
+from .utils import augment_scan_details
 
 router = APIRouter(prefix="/plots", tags=["plots"])
 
@@ -56,5 +57,5 @@ async def get_plot_details(plot_id: str, current_user: dict = Depends(get_curren
     scans = await db.get_scans_by_plot(plot_id, current_user["id"])
     return {
         "plot": plot,
-        "scans": scans
+        "scans": [augment_scan_details(scan) for scan in scans]
     }

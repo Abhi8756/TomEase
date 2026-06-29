@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Leaf, Clock, TrendingUp, X, Image as ImageIcon } from 'lucide-react';
 import { predictApi, API_BASE } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { useStore } from '../store';
 
 const diseaseColors: Record<string, string> = {
   Healthy: '#10b981', Early_Blight: '#f59e0b', Late_Blight: '#ef4444',
@@ -16,6 +18,9 @@ export default function HistoryPage() {
   const [search, setSearch] = useState('');
   const [diseaseFilter, setDiseaseFilter] = useState('All');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  const navigate = useNavigate();
+  const setLatestResult = useStore(state => state.setLatestResult);
 
   useEffect(() => {
     predictApi.recentScans(100)
@@ -120,15 +125,25 @@ export default function HistoryPage() {
                   {filtered.map((scan, i) => {
                     const color = diseaseColors[scan.disease] || '#6b7280';
                     return (
-                      <tr key={scan.scan_id || i} className="hover:bg-white/3 transition-colors">
+                      <tr 
+                        key={scan.scan_id || i} 
+                        className="hover:bg-white/5 transition-colors cursor-pointer group"
+                        onClick={() => {
+                          setLatestResult(scan);
+                          navigate('/result');
+                        }}
+                      >
                         <td className="px-6 py-4 text-sm text-gray-500">{i + 1}</td>
                         <td className="px-6 py-4">
                           {scan.image_url ? (
                             <img 
                               src={scan.image_url.startsWith('http') ? scan.image_url : `${API_BASE}${scan.image_url}`} 
                               alt="Scan" 
-                              onClick={() => setSelectedImage(scan.image_url)}
-                              className="w-10 h-10 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity cursor-pointer" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedImage(scan.image_url);
+                              }}
+                              className="w-10 h-10 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity" 
                             />
                           ) : (
                             <div className="w-10 h-10 bg-dark-800 rounded-lg flex items-center justify-center border border-white/5">

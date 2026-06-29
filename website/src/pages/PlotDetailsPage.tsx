@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import dayjs from 'dayjs';
+import { useStore } from '../store';
 
 export default function PlotDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +17,8 @@ export default function PlotDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [weather, setWeather] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  const setLatestResult = useStore(state => state.setLatestResult);
 
   useEffect(() => {
     if (!id) return;
@@ -148,15 +151,22 @@ export default function PlotDetailsPage() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.1 }}
                     key={scan.scan_id} 
-                    className="flex items-center justify-between p-4 rounded-xl bg-dark-900 border border-white/5"
+                    className="flex items-center justify-between p-4 rounded-xl bg-dark-900 border border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+                    onClick={() => {
+                      setLatestResult(scan);
+                      navigate('/result');
+                    }}
                   >
                     <div className="flex items-center gap-4">
                       {scan.image_url ? (
                         <img 
                           src={scan.image_url.startsWith('http') ? scan.image_url : `${API_BASE}${scan.image_url}`} 
                           alt="Scan" 
-                          onClick={() => setSelectedImage(scan.image_url)}
-                          className="w-12 h-12 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity cursor-pointer" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedImage(scan.image_url);
+                          }}
+                          className="w-12 h-12 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity" 
                         />
                       ) : (
                         <div className="w-12 h-12 bg-dark-800 rounded-lg flex items-center justify-center border border-white/5">
