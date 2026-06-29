@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Download, MapPin, CloudRain, Sun, Wind, Activity, Image as ImageIcon, Users, Plus, X } from 'lucide-react';
+import { ArrowLeft, Download, MapPin, CloudRain, Sun, Wind, Activity, Image as ImageIcon, Users, Plus, X, Satellite } from 'lucide-react';
 import { plotsApi, API_BASE } from '../services/api';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -18,6 +18,7 @@ export default function PlotDetailsPage() {
   const [weather, setWeather] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [members, setMembers] = useState<any[]>([]);
+  const [ndvi, setNdvi] = useState<any>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
@@ -31,8 +32,9 @@ export default function PlotDetailsPage() {
         setPlot(res.data.plot);
         setScans(res.data.scans);
         
-        // Fetch members
+        // Fetch members and NDVI
         plotsApi.getMembers(id).then(m => setMembers(m.data)).catch(console.error);
+        plotsApi.getNdvi(id).then(n => setNdvi(n.data)).catch(console.error);
         
         // Fetch real weather if we have coordinates
         if (res.data.plot.latitude && res.data.plot.longitude) {
@@ -278,6 +280,41 @@ export default function PlotDetailsPage() {
               ) : (
                 <div className="text-gray-400 text-sm py-4">
                   {plot.latitude ? 'Loading weather data...' : 'Add GPS coordinates to this plot to see live weather.'}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Satellite NDVI Widget */}
+          <div className="glass p-6 rounded-2xl relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 to-transparent" />
+            <div className="relative">
+              <h2 className="text-lg font-bold text-gray-300 mb-4 flex items-center gap-2">
+                <Satellite className="w-5 h-5 text-emerald-400" />
+                Satellite NDVI
+              </h2>
+              
+              {ndvi ? (
+                <div>
+                  <div className="relative rounded-xl overflow-hidden mb-3 border border-white/10 aspect-video bg-dark-900/50 flex items-center justify-center">
+                    {ndvi.image_url ? (
+                      <img src={ndvi.image_url} alt="NDVI Heatmap" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-gray-500 text-sm">Image not available</span>
+                    )}
+                    {ndvi.mocked && (
+                      <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-xs px-2 py-1 rounded text-gray-300 border border-white/10">
+                        Demo Mode
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    {ndvi.description}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-gray-400 text-sm py-4">
+                  {plot.latitude ? 'Fetching satellite data...' : 'Add GPS coordinates to view satellite imagery.'}
                 </div>
               )}
             </div>

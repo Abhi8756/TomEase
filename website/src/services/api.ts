@@ -65,6 +65,8 @@ export const predictApi = {
 
 export const analyticsApi = {
   getRecentScans: (limit: number = 50) => api.get(`/analytics/recent-scans?limit=${limit}`),
+  getAlerts: () => api.get('/alerts'),
+  markAlertRead: (id: number) => api.post(`/alerts/${id}/read`),
 };
 
 export const plotsApi = {
@@ -73,6 +75,7 @@ export const plotsApi = {
   getById: (id: string) => api.get(`/plots/${id}`),
   getMembers: (id: string) => api.get(`/plots/${id}/members`),
   inviteMember: (id: string, email: string) => api.post(`/plots/${id}/members`, { email }),
+  getNdvi: (id: string) => api.get(`/plots/${id}/ndvi`),
 };
 
 // ─── Model ───────────────────────────────────────────

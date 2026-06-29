@@ -46,6 +46,18 @@ class PlotMember(Base):
     role = Column(String(50), default="member")
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class Alert(Base):
+    """Store regional alerts for users"""
+    __tablename__ = 'alerts'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(36), index=True)
+    plot_id = Column(String(36), index=True, nullable=True)
+    message = Column(Text)
+    type = Column(String(50), default="warning")
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class ModelVersion(Base):
     """Track model versions"""
     __tablename__ = 'model_versions'
@@ -401,6 +413,56 @@ class Database:
                 })
                 
             return result
+        finally:
+            session.close()
+
+    async def get_all_plots(self) -> List[Dict]:
+        """Get all plots (for regional alerts distance calc)"""
+        session = self.SessionLocal()
+        try:
+            plots = session.query(Plot).all()
+            return [{"id": p.id, "user_id": p.user_id, "name": p.name, "latitude": p.latitude, "longitude": p.longitude} for p in plots]
+        finally:
+            session.close()
+
+    async def create_alert(self, user_id: str, message: str, plot_id: str = None, type: str = "warning") -> None:
+        """Create a notification alert"""
+        session = self.SessionLocal()
+        try:
+            alert = Alert(user_id=user_id, plot_id=plot_id, message=message, type=type)
+            session.add(alert)
+            session.commit()
+        finally:
+            session.close()
+
+    async def get_user_alerts(self, user_id: str) -> List[Dict]:
+        """Get all alerts for a user"""
+        session = self.SessionLocal()
+        try:
+            alerts = session.query(Alert).filter(Alert.user_id == user_id).order_by(Alert.created_at.desc()).limit(20).all()
+            return [
+                {
+                    "id": a.id,
+                    "message": a.message,
+                    "type": a.type,
+                    "is_read": a.is_read,
+                    "created_at": a.created_at.isoformat(),
+                    "plot_id": a.plot_id
+                } for a in alerts
+            ]
+        finally:
+            session.close()
+            
+    async def mark_alert_read(self, alert_id: int, user_id: str) -> bool:
+        """Mark an alert as read"""
+        session = self.SessionLocal()
+        try:
+            alert = session.query(Alert).filter(Alert.id == alert_id, Alert.user_id == user_id).first()
+            if not alert:
+                return False
+            alert.is_read = True
+            session.commit()
+            return True
         finally:
             session.close()
 

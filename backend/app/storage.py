@@ -8,7 +8,7 @@ class LocalStorage:
     """Local file storage manager for IceCloud volume mounts"""
     
     def __init__(self):
-        self.base_dir = "./storage"
+        self.base_dir = os.getenv("DATASET_STORAGE_PATH", "./storage")
         os.makedirs(f"{self.base_dir}/images", exist_ok=True)
         os.makedirs(f"{self.base_dir}/gradcams", exist_ok=True)
         os.makedirs(f"{self.base_dir}/models", exist_ok=True)

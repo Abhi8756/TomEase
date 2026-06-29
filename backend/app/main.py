@@ -16,7 +16,7 @@ from .database import database
 from .storage import LocalStorage
 from .auth import router as auth_router, get_current_user
 from .plots import router as plots_router
-from .utils import get_recommendations, augment_scan_details
+from .utils import get_recommendations, augment_scan_details, calculate_distance
 
 app = FastAPI(
     title="Tomato Leaf Disease Detection API",
@@ -80,6 +80,30 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on shutdown"""
     await database.disconnect()
+
+async def trigger_regional_alerts(disease: str, source_plot_id: str):
+    """Check for nearby plots and alert owners if a disease is detected"""
+    if disease == "Healthy":
+        return
+        
+    plots = await database.get_all_plots()
+    source_plot = next((p for p in plots if p["id"] == source_plot_id), None)
+    
+    if not source_plot or not source_plot["latitude"]:
+        return
+        
+    for plot in plots:
+        # Don't alert the source plot owner again here (they get immediate feedback)
+        if plot["id"] == source_plot_id or not plot["latitude"]:
+            continue
+            
+        dist = calculate_distance(source_plot["latitude"], source_plot["longitude"], plot["latitude"], plot["longitude"])
+        
+        # 10km radius alert
+        if dist <= 10.0:
+            msg = f"⚠️ Alert: {disease.replace('_', ' ')} has been detected within {dist:.1f}km of your plot '{plot['name']}'."
+            alert_type = "danger" if disease in ["Late_Blight", "TYLCV"] else "warning"
+            await database.create_alert(plot["user_id"], msg, source_plot_id, alert_type)
 
 @app.get("/")
 async def root():
@@ -164,6 +188,9 @@ async def predict_disease(
                 user_id=current_user["id"],
                 image_url=image_url
             )
+            
+            if plot_id:
+                background_tasks.add_task(trigger_regional_alerts, result['disease'], plot_id)
         
         return PredictionResponse(
             scan_id=scan_id,
@@ -300,6 +327,19 @@ async def get_recent_scans(limit: int = 50):
     """Get recent predictions for analytics"""
     scans = await database.get_recent_scans(limit)
     return {"scans": [augment_scan_details(scan) for scan in scans]}
+
+@app.get("/alerts")
+async def get_alerts(current_user: dict = Depends(get_current_user)):
+    """Get unread/recent alerts for user"""
+    return await database.get_user_alerts(current_user["id"])
+
+@app.post("/alerts/{alert_id}/read")
+async def mark_alert_read(alert_id: int, current_user: dict = Depends(get_current_user)):
+    """Mark an alert as read"""
+    success = await database.mark_alert_read(alert_id, current_user["id"])
+    if not success:
+        raise HTTPException(404, "Alert not found")
+    return {"status": "success"}
 
 
 

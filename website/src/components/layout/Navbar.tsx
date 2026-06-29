@@ -1,8 +1,9 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Leaf, Scan, History, LayoutDashboard, Settings, LogOut, Menu, X, ChevronRight, MapPin } from 'lucide-react';
-import { useState } from 'react';
+import { Leaf, Scan, History, LayoutDashboard, Settings, LogOut, Menu, X, ChevronRight, MapPin, Bell } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../../store';
 import toast from 'react-hot-toast';
+import { analyticsApi } from '../../services/api';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -16,6 +17,25 @@ export default function Navbar() {
   const navigate = useNavigate();
   const { user, logout } = useStore();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      analyticsApi.getAlerts().then(res => setAlerts(res.data)).catch(console.error);
+    }
+  }, [user]);
+
+  const unreadCount = alerts.filter(a => !a.is_read).length;
+
+  const handleMarkRead = async (id: number) => {
+    try {
+      await analyticsApi.markAlertRead(id);
+      setAlerts(alerts.map(a => a.id === id ? { ...a, is_read: true } : a));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -62,6 +82,47 @@ export default function Navbar() {
 
           {/* Right side */}
           <div className="hidden md:flex items-center gap-3">
+            {/* Notification Bell */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors relative"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                )}
+              </button>
+              
+              {/* Dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-80 bg-dark-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+                  <div className="p-3 border-b border-white/10 bg-dark-900/50 flex justify-between items-center">
+                    <h3 className="font-semibold text-white">Regional Alerts</h3>
+                    {unreadCount > 0 && <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">{unreadCount} New</span>}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {alerts.length === 0 ? (
+                      <p className="p-4 text-sm text-gray-400 text-center">No alerts in your region</p>
+                    ) : (
+                      alerts.map(alert => (
+                        <div key={alert.id} 
+                          onClick={() => handleMarkRead(alert.id)}
+                          className={`p-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors
+                            ${!alert.is_read ? 'bg-red-500/5' : ''}`}
+                        >
+                          <p className={`text-[10px] mb-1 font-bold tracking-wider ${alert.type === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
+                            {alert.type === 'danger' ? 'CRITICAL ALERT' : 'WARNING'}
+                          </p>
+                          <p className={`text-sm ${!alert.is_read ? 'text-white font-medium' : 'text-gray-400'}`}>{alert.message}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
               <div className="w-6 h-6 rounded-full bg-primary-500/30 border border-primary-500/50 
                             flex items-center justify-center text-xs font-bold text-primary-400">
