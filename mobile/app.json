@@ -1,6 +1,50 @@
 {
-  "plugins": [
-    "expo-sqlite",
-    "expo-secure-store"
-  ]
+  "expo": {
+    "name": "TomEase",
+    "slug": "tomease",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#111827"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#111827"
+      },
+      "package": "com.tomease.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.tomease.app",
+      "supportsTablet": false
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow TomEase to use your location for plot mapping."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "77c81cfe-4a20-455f-a62e-2709cb0367c3"
+      }
+    }
+  }
 }
