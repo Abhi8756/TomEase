@@ -65,16 +65,45 @@ export default function PlotsScreen() {
     }
   };
 
+  const [plotMembers, setPlotMembers] = useState<any[]>([]);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'scans'|'members'>('scans');
+
   const openPlotDetail = async (plot: any) => {
     setSelectedPlot(plot);
+    setActiveTab('scans');
     setPlotScansLoading(true);
     try {
-      const res = await api.get(`/analytics/recent-scans?plot_id=${plot.id}`);
-      setPlotScans(res.data.scans || []);
+      // /plots/{id} returns { plot, scans } — scans are correctly filtered to this plot
+      const [detailRes, membersRes] = await Promise.all([
+        api.get(`/plots/${plot.id}`),
+        api.get(`/plots/${plot.id}/members`),
+      ]);
+      setPlotScans(detailRes.data.scans || []);
+      setPlotMembers(membersRes.data || []);
     } catch {
       setPlotScans([]);
+      setPlotMembers([]);
     } finally {
       setPlotScansLoading(false);
+    }
+  };
+
+  const handleInviteMember = async () => {
+    if (!inviteEmail.trim() || !selectedPlot) return;
+    setIsInviting(true);
+    try {
+      await api.post(`/plots/${selectedPlot.id}/members`, { email: inviteEmail.trim() });
+      setInviteEmail('');
+      // Refresh members
+      const res = await api.get(`/plots/${selectedPlot.id}/members`);
+      setPlotMembers(res.data || []);
+      Alert.alert('Success', `Invitation sent!`);
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.detail || 'Failed to invite member');
+    } finally {
+      setIsInviting(false);
     }
   };
 
@@ -176,30 +205,80 @@ export default function PlotsScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ flex: 1, padding: 16 }}>
+            <ScrollView style={{ flex: 1 }}>
               <Text style={styles.plotDetailCoords}>
                 📍 {selectedPlot.latitude?.toFixed(5)}, {selectedPlot.longitude?.toFixed(5)}
               </Text>
 
-              <Text style={styles.plotDetailScanHeader}>Scans from this plot</Text>
-              {plotScansLoading ? (
-                <ActivityIndicator color="#10b981" />
-              ) : plotScans.length === 0 ? (
-                <Text style={styles.noScansText}>No scans recorded for this plot yet.</Text>
-              ) : (
-                plotScans.map((scan) => (
-                  <View key={scan.scan_id} style={styles.plotScanCard}>
-                    <View style={[styles.diseaseDot, { backgroundColor: getDiseaseColor(scan.disease) }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.plotScanDisease, { color: getDiseaseColor(scan.disease) }]}>
-                        {scan.disease.replace(/_/g, ' ')}
-                      </Text>
-                      <Text style={styles.plotScanMeta}>
-                        {(scan.confidence * 100).toFixed(1)}% · {new Date(scan.timestamp).toLocaleDateString()}
-                      </Text>
-                    </View>
+              {/* Tabs */}
+              <View style={styles.tabRow}>
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'scans' && styles.tabActive]}
+                  onPress={() => setActiveTab('scans')}
+                >
+                  <Text style={[styles.tabText, activeTab === 'scans' && styles.tabTextActive]}>Scans</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'members' && styles.tabActive]}
+                  onPress={() => setActiveTab('members')}
+                >
+                  <Text style={[styles.tabText, activeTab === 'members' && styles.tabTextActive]}>Team</Text>
+                </TouchableOpacity>
+              </View>
+
+              {activeTab === 'scans' && (
+                <>
+                  {plotScansLoading ? (
+                    <ActivityIndicator color="#10b981" />
+                  ) : plotScans.length === 0 ? (
+                    <Text style={styles.noScansText}>No scans recorded for this plot yet.</Text>
+                  ) : (
+                    plotScans.map((scan) => (
+                      <View key={scan.scan_id} style={styles.plotScanCard}>
+                        <View style={[styles.diseaseDot, { backgroundColor: getDiseaseColor(scan.disease) }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.plotScanDisease, { color: getDiseaseColor(scan.disease) }]}>
+                            {scan.disease.replace(/_/g, ' ')}
+                          </Text>
+                          <Text style={styles.plotScanMeta}>
+                            {(scan.confidence * 100).toFixed(1)}% · {new Date(scan.timestamp).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </>
+              )}
+
+              {activeTab === 'members' && (
+                <>
+                  {/* Invite */}
+                  <View style={styles.inviteRow}>
+                    <TextInput
+                      style={styles.inviteInput}
+                      placeholder="Invite by email..."
+                      placeholderTextColor="#9ca3af"
+                      value={inviteEmail}
+                      onChangeText={setInviteEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity style={styles.inviteButton} onPress={handleInviteMember} disabled={isInviting}>
+                      {isInviting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.inviteButtonText}>Invite</Text>}
+                    </TouchableOpacity>
                   </View>
-                ))
+
+                  {plotMembers.length === 0 ? (
+                    <Text style={styles.noScansText}>No team members yet.</Text>
+                  ) : (
+                    plotMembers.map((m, i) => (
+                      <View key={i} style={styles.memberCard}>
+                        <Text style={styles.memberName}>{m.name || m.email}</Text>
+                        <Text style={styles.memberRole}>{m.role}</Text>
+                      </View>
+                    ))
+                  )}
+                </>
               )}
             </ScrollView>
           </View>
@@ -351,4 +430,35 @@ const styles = StyleSheet.create({
   diseaseDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
   plotScanDisease: { fontSize: 15, fontWeight: 'bold' },
   plotScanMeta: { color: '#9ca3af', fontSize: 12, marginTop: 3 },
+  tabRow: {
+    flexDirection: 'row', marginHorizontal: 16,
+    marginVertical: 12, backgroundColor: '#374151',
+    borderRadius: 8, padding: 3,
+  },
+  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
+  tabActive: { backgroundColor: '#10b981' },
+  tabText: { color: '#9ca3af', fontWeight: 'bold' },
+  tabTextActive: { color: '#fff' },
+  inviteRow: {
+    flexDirection: 'row', marginHorizontal: 16, marginBottom: 12,
+  },
+  inviteInput: {
+    flex: 1, backgroundColor: '#374151', color: '#fff',
+    borderRadius: 8, padding: 10, marginRight: 8,
+  },
+  inviteButton: {
+    backgroundColor: '#10b981', borderRadius: 8,
+    paddingHorizontal: 14, justifyContent: 'center',
+  },
+  inviteButtonText: { color: '#fff', fontWeight: 'bold' },
+  memberCard: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', backgroundColor: '#1f2937',
+    borderRadius: 8, padding: 12, marginHorizontal: 16, marginBottom: 8,
+  },
+  memberName: { color: '#fff', fontSize: 15 },
+  memberRole: {
+    color: '#10b981', fontSize: 12,
+    textTransform: 'capitalize', fontWeight: 'bold',
+  },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,27 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import { MapPin, ChevronDown } from 'lucide-react-native';
 import { predictDisease } from '../services/api';
+import api from '../services/api';
 
 export default function CameraScreen({ navigation }: any) {
   const [permission, requestPermission] = useCameraPermissions();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const cameraRef = useRef<CameraView>(null);
+  const [plots, setPlots] = useState<any[]>([]);
+  const [selectedPlot, setSelectedPlot] = useState<any | null>(null);
+  const [plotPickerVisible, setPlotPickerVisible] = useState(false);
+
+  useEffect(() => {
+    api.get('/plots/').then(res => setPlots(res.data)).catch(() => {});
+  }, []);
 
   const takePicture = async () => {
     if (cameraRef.current) {
@@ -39,10 +50,9 @@ export default function CameraScreen({ navigation }: any) {
 
   const analyzePicture = async () => {
     if (!capturedImage) return;
-
     setLoading(true);
     try {
-      const result = await predictDisease(capturedImage);
+      const result = await predictDisease(capturedImage, selectedPlot?.id);
       
       if (!result.is_reliable) {
         Alert.alert(
@@ -94,21 +104,37 @@ export default function CameraScreen({ navigation }: any) {
               <Text style={styles.loadingText}>Analyzing leaf...</Text>
             </View>
           ) : (
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.retakeButton]}
-                onPress={() => setCapturedImage(null)}
-              >
-                <Text style={styles.buttonText}>Retake</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.button, styles.analyzeButton]}
-                onPress={analyzePicture}
-              >
-                <Text style={styles.buttonText}>Analyze 🔍</Text>
-              </TouchableOpacity>
-            </View>
+            <>
+              {/* Plot Picker */}
+              {plots.length > 0 && (
+                <TouchableOpacity
+                  style={styles.plotPicker}
+                  onPress={() => setPlotPickerVisible(true)}
+                >
+                  <MapPin size={16} color="#10b981" />
+                  <Text style={styles.plotPickerText}>
+                    {selectedPlot ? selectedPlot.name : 'Link to a plot (optional)'}
+                  </Text>
+                  <ChevronDown size={16} color="#9ca3af" />
+                </TouchableOpacity>
+              )}
+
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={[styles.button, styles.retakeButton]}
+                  onPress={() => setCapturedImage(null)}
+                >
+                  <Text style={styles.buttonText}>Retake</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.button, styles.analyzeButton]}
+                  onPress={analyzePicture}
+                >
+                  <Text style={styles.buttonText}>Analyze 🔍</Text>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
         </View>
       ) : (
@@ -139,6 +165,37 @@ export default function CameraScreen({ navigation }: any) {
           </View>
         </View>
       )}
+
+      {/* Plot Picker Modal — outside the ternary, sibling to the main content */}
+      <Modal visible={plotPickerVisible} transparent animationType="slide">
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerSheet}>
+            <Text style={styles.pickerTitle}>Select a Plot</Text>
+            <TouchableOpacity
+              style={styles.pickerItem}
+              onPress={() => { setSelectedPlot(null); setPlotPickerVisible(false); }}
+            >
+              <Text style={styles.pickerNone}>None (no plot)</Text>
+            </TouchableOpacity>
+            <FlatList
+              data={plots}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.pickerItem, selectedPlot?.id === item.id && styles.pickerItemSelected]}
+                  onPress={() => { setSelectedPlot(item); setPlotPickerVisible(false); }}
+                >
+                  <MapPin size={16} color={selectedPlot?.id === item.id ? '#10b981' : '#9ca3af'} />
+                  <Text style={[styles.pickerItemText, selectedPlot?.id === item.id && { color: '#10b981' }]}>
+                    {item.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -246,4 +303,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  plotPicker: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#1f2937', borderRadius: 8,
+    paddingHorizontal: 14, paddingVertical: 10,
+    marginHorizontal: 20, marginBottom: 10,
+  },
+  plotPickerText: {
+    flex: 1, color: '#d1d5db', marginLeft: 8, fontSize: 14,
+  },
+  pickerOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: '#1f2937', borderTopLeftRadius: 16,
+    borderTopRightRadius: 16, padding: 20, maxHeight: '60%',
+  },
+  pickerTitle: {
+    color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 16,
+  },
+  pickerItem: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#374151',
+  },
+  pickerItemSelected: { backgroundColor: '#111827', borderRadius: 8 },
+  pickerItemText: { color: '#d1d5db', marginLeft: 10, fontSize: 15 },
+  pickerNone: { color: '#9ca3af', fontSize: 15 },
 });

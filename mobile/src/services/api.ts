@@ -45,7 +45,7 @@ export interface PredictionResult {
   image_uri?: string;
 }
 
-export async function predictDisease(imageUri: string): Promise<PredictionResult> {
+export async function predictDisease(imageUri: string, plotId?: string): Promise<PredictionResult> {
   try {
     const formData = new FormData();
     
@@ -55,6 +55,10 @@ export async function predictDisease(imageUri: string): Promise<PredictionResult
       type: 'image/jpeg',
       name: 'leaf.jpg',
     });
+
+    if (plotId) {
+      formData.append('plot_id', plotId);
+    }
 
     const response = await api.post('/predict', formData, {
       headers: {
