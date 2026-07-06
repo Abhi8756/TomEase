@@ -134,12 +134,8 @@ export default function CameraScreen({ navigation }: any) {
               <View style={styles.captureButtonInner} />
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.iconButton}
-              onPress={() => navigation.navigate('History')}
-            >
-              <Text style={styles.iconText}>📊</Text>
-            </TouchableOpacity>
+            {/* History button removed as it's now in the bottom tabs */}
+            <View style={{ width: 60 }} />
           </View>
         </View>
       )}

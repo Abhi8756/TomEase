@@ -6,24 +6,10 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
-import { saveScan } from '../services/database';
 
 export default function ResultScreen({ route, navigation }: any) {
-  const { result, imageUri } = route.params;
-
-  React.useEffect(() => {
-    // Save to local database
-    saveScan({
-      scan_id: result.scan_id,
-      disease: result.disease,
-      confidence: result.confidence_calibrated,
-      gradcam_url: result.gradcam_url,
-      timestamp: result.timestamp,
-      image_uri: imageUri,
-    });
-  }, []);
+  const { result } = route.params;
 
   const getDiseaseColor = (disease: string) => {
     if (disease === 'Healthy') return '#10b981';
@@ -37,13 +23,18 @@ export default function ResultScreen({ route, navigation }: any) {
     return 'Low Confidence';
   };
 
+  const getImageUrl = (url: string) => {
+    if (url?.startsWith('http')) return url;
+    return `http://localhost:8080${url}`;
+  };
+
   return (
     <ScrollView style={styles.container}>
       {/* GradCAM Visualization */}
       <View style={styles.imageSection}>
         <Text style={styles.sectionTitle}>Detection Heatmap</Text>
         <Image 
-          source={{ uri: result.gradcam_url }} 
+          source={{ uri: getImageUrl(result.gradcam_url) }} 
           style={styles.gradcamImage}
           resizeMode="contain"
         />
@@ -108,7 +99,7 @@ export default function ResultScreen({ route, navigation }: any) {
         
         <TouchableOpacity 
           style={[styles.actionButton, styles.primaryButton]}
-          onPress={() => navigation.navigate('Camera')}
+          onPress={() => navigation.navigate('Scan')}
         >
           <Text style={[styles.actionButtonText, { color: '#fff' }]}>
             Scan Another
@@ -131,10 +122,10 @@ export default function ResultScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#111827',
   },
   imageSection: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1f2937',
     padding: 20,
     marginBottom: 10,
   },
@@ -142,7 +133,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#1f2937',
+    color: '#10b981',
   },
   gradcamImage: {
     width: '100%',

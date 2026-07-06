@@ -1,9 +1,36 @@
 import axios from 'axios';
+import { useStore } from '../store';
+import * as SecureStore from 'expo-secure-store';
 
-// ⚠️ CHANGE THIS to your IceCloud deployment URL
-// e.g., 'https://your-app-name.icecloud.in'
-// See ICECLOUD_DEPLOYMENT_GUIDE.md for instructions
-const API_URL = 'http://localhost:8080';
+// Production: ICE Cloud backend
+export const API_URL = 'https://tomease.icecloud.in/api';
+
+const api = axios.create({
+  baseURL: API_URL,
+  timeout: 30000,
+});
+
+// Add token to requests
+api.interceptors.request.use(async (config) => {
+  const token = await SecureStore.getItemAsync('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Handle token expiration/refresh (simplified)
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      useStore.getState().logout();
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
 
 export interface PredictionResult {
   scan_id: string;
@@ -15,6 +42,7 @@ export interface PredictionResult {
   is_reliable: boolean;
   warning?: string;
   timestamp: string;
+  image_uri?: string;
 }
 
 export async function predictDisease(imageUri: string): Promise<PredictionResult> {
@@ -28,11 +56,10 @@ export async function predictDisease(imageUri: string): Promise<PredictionResult
       name: 'leaf.jpg',
     });
 
-    const response = await axios.post(`${API_URL}/predict`, formData, {
+    const response = await api.post('/predict', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
-      timeout: 30000, // 30 seconds
     });
 
     return response.data;
@@ -49,7 +76,7 @@ export async function predictDisease(imageUri: string): Promise<PredictionResult
 
 export async function getModelInfo() {
   try {
-    const response = await axios.get(`${API_URL}/model/info`);
+    const response = await api.get('/model/info');
     return response.data;
   } catch (error) {
     console.error('Failed to fetch model info:', error);
@@ -59,9 +86,10 @@ export async function getModelInfo() {
 
 export async function checkHealth() {
   try {
-    const response = await axios.get(`${API_URL}/health`);
+    const response = await api.get('/health');
     return response.data.status === 'healthy';
   } catch (error) {
     return false;
   }
 }
+
