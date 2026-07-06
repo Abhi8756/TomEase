@@ -7,26 +7,12 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
+import { getImageUrl, getDiseaseColor, getSeverityLabel } from '../services/utils';
 
 export default function ResultScreen({ route, navigation }: any) {
   const { result } = route.params;
 
-  const getDiseaseColor = (disease: string) => {
-    if (disease === 'Healthy') return '#10b981';
-    if (disease === 'TYLCV') return '#ef4444';
-    return '#f59e0b';
-  };
 
-  const getSeverityLabel = (confidence: number) => {
-    if (confidence > 0.9) return 'High Confidence';
-    if (confidence > 0.7) return 'Moderate Confidence';
-    return 'Low Confidence';
-  };
-
-  const getImageUrl = (url: string) => {
-    if (url?.startsWith('http')) return url;
-    return `http://localhost:8080${url}`;
-  };
 
   return (
     <ScrollView style={styles.container}>

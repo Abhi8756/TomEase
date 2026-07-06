@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, ScrollView } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
-import { MapPin, Plus, Bell } from 'lucide-react-native';
+import { MapPin, Plus, Bell, X, ChevronRight } from 'lucide-react-native';
 import api from '../services/api';
 import { useStore } from '../store';
+import { getDiseaseColor } from '../services/utils';
 
 export default function PlotsScreen() {
   const [plots, setPlots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [newPlotName, setNewPlotName] = useState('');
+  const [selectedPlot, setSelectedPlot] = useState<any | null>(null);
+  const [plotScans, setPlotScans] = useState<any[]>([]);
+  const [plotScansLoading, setPlotScansLoading] = useState(false);
   
   // Default to a central location (e.g., center of US or user's locale)
   const [region, setRegion] = useState({
@@ -61,6 +65,19 @@ export default function PlotsScreen() {
     }
   };
 
+  const openPlotDetail = async (plot: any) => {
+    setSelectedPlot(plot);
+    setPlotScansLoading(true);
+    try {
+      const res = await api.get(`/analytics/recent-scans?plot_id=${plot.id}`);
+      setPlotScans(res.data.scans || []);
+    } catch {
+      setPlotScans([]);
+    } finally {
+      setPlotScansLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.mapContainer}>
@@ -101,17 +118,15 @@ export default function PlotsScreen() {
             data={plots}
             keyExtractor={item => item.id}
             renderItem={({ item }) => (
-              <View style={styles.plotCard}>
+              <TouchableOpacity style={styles.plotCard} onPress={() => openPlotDetail(item)}>
                 <View>
                   <Text style={styles.plotName}>{item.name}</Text>
                   <Text style={styles.plotCoords}>
                     {item.latitude?.toFixed(4)}, {item.longitude?.toFixed(4)}
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.alertButton}>
-                  <Bell size={20} color="#9ca3af" />
-                </TouchableOpacity>
-              </View>
+                <ChevronRight size={18} color="#6b7280" />
+              </TouchableOpacity>
             )}
             ListEmptyComponent={
               <Text style={styles.emptyText}>No plots found. Add one using the map above!</Text>
@@ -148,6 +163,47 @@ export default function PlotsScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Plot Detail Modal */}
+      <Modal visible={!!selectedPlot} animationType="slide" onRequestClose={() => setSelectedPlot(null)}>
+        {selectedPlot && (
+          <View style={{ flex: 1, backgroundColor: '#111827' }}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{selectedPlot.name}</Text>
+              <TouchableOpacity onPress={() => setSelectedPlot(null)}>
+                <X size={22} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ flex: 1, padding: 16 }}>
+              <Text style={styles.plotDetailCoords}>
+                📍 {selectedPlot.latitude?.toFixed(5)}, {selectedPlot.longitude?.toFixed(5)}
+              </Text>
+
+              <Text style={styles.plotDetailScanHeader}>Scans from this plot</Text>
+              {plotScansLoading ? (
+                <ActivityIndicator color="#10b981" />
+              ) : plotScans.length === 0 ? (
+                <Text style={styles.noScansText}>No scans recorded for this plot yet.</Text>
+              ) : (
+                plotScans.map((scan) => (
+                  <View key={scan.scan_id} style={styles.plotScanCard}>
+                    <View style={[styles.diseaseDot, { backgroundColor: getDiseaseColor(scan.disease) }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.plotScanDisease, { color: getDiseaseColor(scan.disease) }]}>
+                        {scan.disease.replace(/_/g, ' ')}
+                      </Text>
+                      <Text style={styles.plotScanMeta}>
+                        {(scan.confidence * 100).toFixed(1)}% · {new Date(scan.timestamp).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        )}
       </Modal>
     </View>
   );
@@ -274,5 +330,25 @@ const styles = StyleSheet.create({
   saveText: {
     color: '#fff',
     fontWeight: 'bold',
-  }
+  },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', padding: 16,
+    backgroundColor: '#1f2937', borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  plotDetailCoords: { color: '#9ca3af', fontSize: 13, marginBottom: 20 },
+  plotDetailScanHeader: {
+    color: '#10b981', fontWeight: 'bold',
+    fontSize: 16, marginBottom: 12,
+  },
+  noScansText: { color: '#6b7280', textAlign: 'center', marginTop: 20 },
+  plotScanCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#1f2937', borderRadius: 8,
+    padding: 12, marginBottom: 8,
+  },
+  diseaseDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
+  plotScanDisease: { fontSize: 15, fontWeight: 'bold' },
+  plotScanMeta: { color: '#9ca3af', fontSize: 12, marginTop: 3 },
 });
