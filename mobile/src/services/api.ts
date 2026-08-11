@@ -2,8 +2,12 @@ import axios from 'axios';
 import { useStore } from '../store';
 import * as SecureStore from 'expo-secure-store';
 
-// Production: ICE Cloud backend
-export const API_URL = 'https://tomease.icecloud.in/api';
+// Development: Local backend - replace with your machine IP for mobile device
+// For emulator/device: use your machine's IP
+// For web: use localhost
+export const API_URL = process.env.NODE_ENV === 'web' 
+  ? 'http://localhost:8000'
+  : 'http://10.50.119.183:8000';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -38,7 +42,20 @@ export interface PredictionResult {
   confidence: number;
   confidence_calibrated: number;
   gradcam_url: string;
+  severity?: string;
   recommendations: string[];
+  cause?: string;
+  prevention?: string[];
+  remedy?: string;
+  remedy_natural?: string[];
+  remedy_chemical?: string[];
+  sources?: Array<{
+    id: string;
+    citation: string;
+    page?: string;
+  }>;
+  confidence_note?: string;
+  requires_human_review?: boolean;
   is_reliable: boolean;
   warning?: string;
   timestamp: string;
