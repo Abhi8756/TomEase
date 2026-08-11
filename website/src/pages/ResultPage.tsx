@@ -182,6 +182,7 @@ export default function ResultPage() {
       </motion.div>
 
       {/* RAG Synthesis: separate boxes for Cause, Prevention, Remedy with enhanced visuals */}
+      {latestResult.disease !== 'Healthy' && (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
         className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
 
@@ -305,8 +306,10 @@ export default function ResultPage() {
           </div>
         </div>
       </motion.div>
+      )}
 
       {/* Action buttons */}
+
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
         className="mt-6 flex flex-col sm:flex-row gap-3">
         <button onClick={() => navigate('/scan')} className="btn-secondary flex-1">

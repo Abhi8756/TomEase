@@ -239,16 +239,27 @@ async def predict_disease(
             # Query RAG with prediction context
             if hasattr(rag_service, 'query_with_model_prediction'):
                 # RAG v2 method
+                # Different query for healthy vs diseased plants
+                if result['disease'] == 'Healthy':
+                    query = "What are the best practices for maintaining healthy tomato plants? How to prevent diseases?"
+                else:
+                    query = f"What are the symptoms, causes, and management of {result['disease']}?"
+                
                 rag_results = rag_service.query_with_model_prediction(
-                    query=f"What are the symptoms, causes, and management of {result['disease']}?",
+                    query=query,
                     prediction={"disease": result['disease'], "confidence": result['confidence']},
                     location=location_dict,
                     top_k=5
                 )
             else:
                 # RAG v1 fallback
+                if result['disease'] == 'Healthy':
+                    query = "best practices maintaining healthy tomato plants prevent diseases"
+                else:
+                    query = f"what are the symptoms, causes and management of {result['disease']}"
+                
                 rag_results = rag_service.query(
-                    f"what are the symptoms, causes and management of {result['disease']}", 
+                    query, 
                     top_k=5, 
                     context=rag_context
                 )

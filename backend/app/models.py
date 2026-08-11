@@ -312,18 +312,25 @@ class ModelService:
         """Check if prediction is reliable (OOD detection)"""
         confidence = result['confidence_calibrated']
         entropy = result['entropy']
+        disease = result.get('disease', '')
+        probs = result['all_probabilities']
+        sorted_probs = sorted(probs, reverse=True)
         
-        # Threshold for low confidence
-        if confidence < 0.6:
-            return False, "Low confidence - please retake photo with better lighting"
+        # SPECIAL CASE: "Healthy" predictions need higher confidence
+        # because the model often confuses healthy leaves with diseased ones
+        if disease == "Healthy":
+            if confidence < 0.75:  # Much stricter threshold for healthy
+                return False, f"Low confidence for healthy prediction ({confidence:.1%}) - plant may have early-stage disease"
+        else:
+            # Disease predictions have standard threshold
+            if confidence < 0.6:
+                return False, "Low confidence - please retake photo with better lighting"
         
         # Threshold for high entropy (uniform distribution)
         if entropy > 1.5:
             return False, "Ambiguous image - ensure full leaf is visible"
         
         # Check if prediction is too close to multiple classes
-        probs = result['all_probabilities']
-        sorted_probs = sorted(probs, reverse=True)
         if sorted_probs[0] - sorted_probs[1] < 0.15:
             return False, "Multiple diseases detected - consult expert"
         
