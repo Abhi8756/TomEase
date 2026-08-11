@@ -128,7 +128,7 @@ export default function ScanPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         {/* Header */}
         <div className="mb-8">

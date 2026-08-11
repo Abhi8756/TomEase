@@ -1,154 +1,31 @@
-# Tomato Disease Detection - FastAPI Backend
+Local development notes
 
-Production-ready FastAPI backend for tomato leaf disease classification.
+- Install local dev requirements (recommended):
 
-## Features
+  & ".venv\Scripts\python.exe" -m pip install -r backend/requirements-local.txt
 
-- 🔬 **ResNet50 Model** - 90.20% field accuracy
-- 🌡️ **Temperature Calibration** - Honest confidence scores
-- 🎨 **GradCAM** - Visual explanations
-- 🚫 **OOD Detection** - Reject unreliable predictions
-- 🔄 **Model Hot-Swap** - Update without redeployment
-- 📊 **Scan History** - PostgreSQL storage
-- ☁️ **Cloud Storage** - Cloudflare R2 integration
+  or to install the production requirements used by Docker:
 
-## Quick Start
+  & ".venv\Scripts\python.exe" -m pip install -r backend/requirements.txt
 
-### Local Development
+- RAG / embeddings:
+  - `sentence-transformers` provides the `all-MiniLM-L6-v2` embeddings used by the RAG pipeline.
+  - If you get "No module named 'sentence_transformers'", install `sentence-transformers` into your venv.
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
+- Database behaviour:
+  - The app prefers a PostgreSQL `DATABASE_URL` when provided.
+  - For local development, if the Postgres driver (`psycopg2`) is not installed or `DATABASE_URL` is unset, the app falls back to using a local SQLite file `tomato_disease.db` to avoid startup failures.
+  - For production / IceCloud, set `DATABASE_URL` to your Postgres connection string and ensure the `psycopg2-binary` package is installed in the container.
 
-# Set environment variables
-export DATABASE_URL=sqlite:///./test.db
-export ADMIN_API_KEY=test123
+- Docker notes (Dockerfile.standalone):
+  - The Docker image installs Python packages from `backend/requirements.txt`. We added `sentence-transformers` and `PyMuPDF` to that file so the container will have the RAG dependencies.
+  - FAISS may not have prebuilt wheels for all platforms; the Docker image currently does not force `faiss-cpu`. If you want FAISS, add it explicitly and test the build in CI.
 
-# Run server
-uvicorn app.main:app --reload
-```
+- Environment variables to configure for production/IceCloud:
+  - `DATABASE_URL` — Postgres connection string (preferred for production)
+  - `GEMINI_API_KEY` or `OPENAI_API_KEY` — remote LLM credentials (optional)
+  - `LLM_MODEL`, `LLM_API_URL` — override LLM provider or endpoint
+  - `LLM_TEMPERATURE` — model temperature
 
-Visit: http://localhost:8000/docs
-
-### Deploy to IceCloud
-
-See `../ICECLOUD_DEPLOYMENT_GUIDE.md` for the full deployment walkthrough.
-
-Quick summary:
-1. `docker build -t tomato-disease-api .`
-2. Push to Docker Hub or GHCR
-3. Deploy on IceCloud with env vars set
-4. Upload model via `POST /admin/upload-model`
-
-## API Endpoints
-
-### Health Check
-```bash
-GET /health
-```
-
-### Predict Disease
-```bash
-POST /predict
-Content-Type: multipart/form-data
-
-file: <image file>
-```
-
-Response:
-```json
-{
-  "scan_id": "abc-123",
-  "disease": "Early_Blight",
-  "confidence_calibrated": 0.87,
-  "gradcam_url": "https://...",
-  "recommendations": ["..."],
-  "is_reliable": true
-}
-```
-
-### Model Info
-```bash
-GET /model/info
-```
-
-### Admin: Upload Model
-```bash
-POST /admin/upload-model
-X-API-Key: <admin_key>
-Content-Type: multipart/form-data
-
-file: <.pth file>
-```
-
-## Environment Variables
-
-```bash
-# Required
-DATABASE_URL=postgresql://...
-ADMIN_API_KEY=your_secret_key
-
-# Optional (for R2 storage)
-R2_ACCOUNT_ID=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET_NAME=tomato-disease-models
-```
-
-## Model Requirements
-
-Your `.pth` checkpoint must contain:
-```python
-{
-  'model_state_dict': OrderedDict(...),  # Required
-  'temperature': 1.5,  # Optional (calibration)
-  'classes': [...],    # Optional
-  'accuracy_field': 0.902  # Optional
-}
-```
-
-Export your model using `../model/export_model.py`
-
-## Architecture
-
-```
-main.py
-├── models.py (Model loading, inference, GradCAM)
-├── database.py (PostgreSQL connection)
-└── storage.py (Cloudflare R2 client)
-```
-
-## Performance
-
-- **Cold start**: 30s (Render free tier)
-- **Inference**: ~1-2s per image
-- **Memory**: ~500MB (with model loaded)
-
-## Testing
-
-```bash
-# Test with sample image
-curl -X POST http://localhost:8000/predict \
-  -F "file=@test_leaf.jpg"
-
-# Health check
-curl http://localhost:8000/health
-```
-
-## Troubleshooting
-
-**"Model not loaded"**
-- Upload model via `/admin/upload-model`
-- Check `MODEL_PATH` environment variable
-
-**"Database connection failed"**
-- Verify `DATABASE_URL` format
-- Check PostgreSQL is running
-
-**"R2 upload failed"**
-- Falls back to local storage
-- Check R2 credentials
-
-## License
-
-MIT
+- Safety reminder:
+  - The RAG synthesizer and LLM client include safety checks: they will set `requires_human_review` when text contains dosage-like patterns or forbidden chemical names. Always review any chemical recommendations before publishing.

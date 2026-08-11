@@ -1,0 +1,68 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Stage 1 — Build React frontend
+# ═══════════════════════════════════════════════════════════════════════════
+FROM node:20-slim AS frontend-builder
+
+WORKDIR /app/website
+
+# Copy package files and install dependencies
+COPY website/package*.json ./
+RUN npm install
+
+# Copy source code and build
+COPY website/ ./
+# Explicitly set VITE_API_BASE to /api for the monolith build
+RUN VITE_API_BASE=/api npm run build
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Stage 2 — All-in-One (Python + Nginx + Supervisor)
+# ═══════════════════════════════════════════════════════════════════════════
+FROM python:3.11-slim AS standalone
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install system dependencies, Nginx, and Supervisor
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
+    nginx \
+    supervisor \
+    libxcb1 \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ── Step 1: Python Requirements ──────────────────────────────────────────
+# Install CPU PyTorch first
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt \
+    && pip uninstall -y opencv-python || true \
+    && pip install --no-cache-dir opencv-python-headless psycopg2-binary
+
+# ── Step 2: Copy Backend Source ──────────────────────────────────────────
+COPY backend/ ./backend/
+
+# Runtime directories
+RUN mkdir -p /app/backend/storage/images /app/backend/storage/gradcams /app/backend/storage/models /var/log/supervisor
+
+# ── Step 3: Copy Frontend Build & Configs ────────────────────────────────
+# Copy React build from Stage 1
+COPY --from=frontend-builder /app/website/dist /usr/share/nginx/html
+
+# Copy Nginx and Supervisor configurations
+COPY nginx.standalone.conf /etc/nginx/nginx.conf
+COPY supervisord.standalone.conf /etc/supervisor/conf.d/supervisord.conf
+
+EXPOSE 80
+
+# Start Supervisor which will manage Nginx and Uvicorn
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

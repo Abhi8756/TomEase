@@ -17,3 +17,8 @@ httpx>=0.26.0
 
 # psycopg2-binary omitted locally — we use SQLite instead
 # gradio-client omitted locally — not needed
+# sentence-transformers for embeddings
+sentence-transformers>=2.2.2
+# Optional: faiss-cpu is faster but may not have wheels on all platforms. Annoy is the fallback.
+faiss-cpu>=1.7.4; platform_system != 'Windows'
+PyMuPDF>=1.22.3

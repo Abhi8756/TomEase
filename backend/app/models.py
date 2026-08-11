@@ -194,6 +194,9 @@ class ModelService:
     
     async def predict(self, image_bytes: bytes) -> Dict:
         """Run inference on image"""
+        if self.model is None:
+            raise RuntimeError("No model loaded! Please log in as Admin and upload the .pth model file via the dashboard.")
+            
         # Load image
         image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
         

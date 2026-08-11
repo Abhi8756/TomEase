@@ -12,3 +12,6 @@ pydantic==2.5.3
 python-dotenv==1.0.0
 httpx==0.26.0
 gradio-client==0.9.0
+sentence-transformers>=2.2.2
+PyMuPDF>=1.22.3
+faiss-cpu>=1.7.0  # For GPU: use faiss-gpu instead

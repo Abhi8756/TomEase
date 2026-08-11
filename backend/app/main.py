@@ -18,6 +18,9 @@ from .auth import router as auth_router, get_current_user
 from .plots import router as plots_router
 from .community import router as community_router
 from .utils import get_recommendations, augment_scan_details, calculate_distance
+from .rag import RAGService as RAGv1  # Keep v1 as fallback
+from .rag_v2 import EnhancedRAGService  # New v2
+from .llm_client import synthesize_structured
 
 app = FastAPI(
     title="Tomato Leaf Disease Detection API",
@@ -51,6 +54,15 @@ model_service = ModelService()
 # database = Database()  # Imported from database.py
 storage = LocalStorage()
 
+# Initialize RAG v2 (with v1 fallback)
+try:
+    rag_service = EnhancedRAGService()
+    print("[INFO] Using RAG v2 (Enhanced)")
+except Exception as e:
+    print(f"[WARN] RAG v2 failed to initialize: {e}")
+    rag_service = RAGv1()
+    print("[INFO] Fallback to RAG v1")
+
 # Models
 class PredictionResponse(BaseModel):
     scan_id: str
@@ -60,6 +72,12 @@ class PredictionResponse(BaseModel):
     gradcam_url: str
     severity: str
     recommendations: List[str]
+    cause: Optional[str] = None
+    prevention: Optional[str] = None
+    remedy: Optional[str] = None
+    remedy_natural: Optional[str] = None
+    remedy_chemical: Optional[str] = None
+    rag_summary: Optional[str] = None
     is_reliable: bool
     warning: Optional[str] = None
     timestamp: str
@@ -76,7 +94,17 @@ async def startup_event():
     """Initialize database and load model on startup"""
     await database.connect()
     await model_service.load_model()
-    print("[OK] API Ready - Model loaded successfully")
+    # Build or load RAG index (runs in background thread to avoid blocking event loop)
+    import anyio
+    def _build():
+        try:
+            rag_service.build_index()
+            print("[OK] RAG index ready")
+        except Exception as e:
+            print(f"[WARN] RAG index build failed: {e}")
+
+    await anyio.to_thread.run_sync(_build)
+    print("[OK] API Ready - Model and RAG initialized")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -176,6 +204,65 @@ async def predict_disease(
         
         # Get disease recommendations
         recommendations = get_recommendations(result['disease'])
+
+        # Run RAG v2 query with enhanced context
+        try:
+            # Prepare context for RAG v2
+            rag_context = {
+                "disease": result['disease'],
+                "confidence": result['confidence']
+            }
+            
+            location_dict = None
+            # Add location context if plot has location
+            if plot_id:
+                plot_info = await database.get_plot(plot_id)
+                if plot_info and plot_info.get("latitude"):
+                    # You can add region detection based on coordinates
+                    rag_context["region"] = "India"  # Or detect from coordinates
+                    location_dict = {"region": "India"}
+            
+            # Query RAG with prediction context
+            if hasattr(rag_service, 'query_with_model_prediction'):
+                # RAG v2 method
+                rag_results = rag_service.query_with_model_prediction(
+                    query=f"What are the symptoms, causes, and management of {result['disease']}?",
+                    prediction={"disease": result['disease'], "confidence": result['confidence']},
+                    location=location_dict,
+                    top_k=5
+                )
+            else:
+                # RAG v1 fallback
+                rag_results = rag_service.query(
+                    f"what are the symptoms, causes and management of {result['disease']}", 
+                    top_k=5, 
+                    context=rag_context
+                )
+            
+            # Prepare text for LLM synthesis
+            if rag_results:
+                # Format context for LLM
+                rag_texts = [r.get("text", "") for r in rag_results]
+                rag_summary = "\n\n".join(rag_texts[:5])  # Top 5 chunks
+                
+                # Synthesize structured answer via Groq LLM
+                synth = synthesize_structured(rag_summary)
+                cause = synth.get("cause") or ""
+                prevention = synth.get("prevention") or ""
+                remedy = synth.get("remedy") or ""
+                remedy_natural = synth.get("remedy_natural") or ""
+                remedy_chemical = synth.get("remedy_chemical") or ""
+            else:
+                rag_summary = ""
+                cause = prevention = remedy = remedy_natural = remedy_chemical = ""
+                
+        except Exception as e:
+            print(f"[WARN] RAG/LLM synthesis failed: {e}")
+            import traceback
+            traceback.print_exc()
+            rag_results = []
+            rag_summary = ""
+            cause = prevention = remedy = remedy_natural = remedy_chemical = ""
         
         # Save to database (async in background)
         if background_tasks:
@@ -202,6 +289,12 @@ async def predict_disease(
             gradcam_url=gradcam_url,
             severity=result['severity'],
             recommendations=recommendations,
+            cause=cause,
+            prevention=prevention,
+            remedy=remedy,
+            remedy_natural=remedy_natural,
+            remedy_chemical=remedy_chemical,
+            rag_summary=rag_summary,
             is_reliable=is_reliable,
             warning=warning,
             timestamp=datetime.utcnow().isoformat(),
@@ -329,6 +422,58 @@ async def get_recent_scans(limit: int = 50):
     """Get recent predictions for analytics"""
     scans = await database.get_recent_scans(limit)
     return {"scans": [augment_scan_details(scan) for scan in scans]}
+
+
+@app.post("/rag/query")
+async def rag_query(payload: dict):
+    """Simple RAG query endpoint. Request JSON: {"query": "text", "top_k": 5}
+
+    Returns list of top results with source and snippet.
+    """
+    q = payload.get("query") if isinstance(payload, dict) else None
+    if not q:
+        raise HTTPException(400, "Missing 'query' in request body")
+
+    top_k = int(payload.get("top_k", 5)) if isinstance(payload, dict) else 5
+    context = payload.get("context", {}) if isinstance(payload, dict) else {}
+    try:
+        results = rag_service.query(q, top_k=top_k, context=context)
+        
+        # Prepare summary text for LLM
+        if results:
+            rag_texts = [r.get("text", "") for r in results]
+            summary = "\n\n---\n\n".join(rag_texts[:5])
+        else:
+            summary = ""
+        
+        # Attempt structured synthesis via remote LLM if configured
+        try:
+            synth = synthesize_structured(summary) if summary else {}
+        except Exception:
+            synth = {"cause": "", "prevention": "", "remedy": "", "short_answer": ""}
+        
+        return {
+            "query": q,
+            "context": context,
+            "results": results,
+            "summary": summary,
+            "synthesis": synth
+        }
+    except Exception as e:
+        raise HTTPException(500, f"RAG query failed: {e}")
+
+
+@app.post("/rag/rebuild")
+async def rag_rebuild(force: Optional[bool] = False):
+    """Trigger a rebuild of the RAG index. Use `force=true` to force rebuild."""
+    import anyio
+    try:
+        def _build():
+            rag_service.build_index(force=force)
+        await anyio.to_thread.run_sync(_build)
+        return {"status": "ok", "message": "RAG index rebuilt"}
+    except Exception as e:
+        raise HTTPException(500, f"RAG rebuild failed: {e}")
 
 @app.get("/alerts")
 async def get_alerts(current_user: dict = Depends(get_current_user)):

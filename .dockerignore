@@ -1,0 +1,14 @@
+.git
+.gitignore
+.venv/
+backend/venv/
+backend/__pycache__/
+website/node_modules/
+mobile/
+docs/
+*.pth
+*.db
+backend/tomato_disease.db
+backend/storage/
+*.md
+.vscode/

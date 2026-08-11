@@ -94,7 +94,7 @@ export default function PlotsPage() {
           setMapCenter([lat, lng]);
           toast.success("Location found!", { id: "geo" });
         },
-        (err) => {
+        (_err) => {
           toast.error("Could not get your location.", { id: "geo" });
         }
       );

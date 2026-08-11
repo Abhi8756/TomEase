@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
-import { Shield, Upload, CheckCircle, XCircle, RefreshCw, Key, AlertTriangle, Cpu, Zap, Download } from 'lucide-react';
+import { Shield, Upload, CheckCircle, XCircle, AlertTriangle, Cpu, Zap, Download } from 'lucide-react';
 import { modelApi } from '../services/api';
 import { useStore } from '../store';
 import toast from 'react-hot-toast';
@@ -12,7 +12,6 @@ export default function AdminPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
   const [modelInfo, setModelInfo] = useState<any>(null);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -43,7 +42,6 @@ export default function AdminPage() {
   };
 
   const fetchHistory = async () => {
-    setHistoryLoading(true);
     try {
       const [histRes, infoRes] = await Promise.all([
         modelApi.history(),
@@ -54,7 +52,6 @@ export default function AdminPage() {
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to fetch history');
     } finally {
-      setHistoryLoading(false);
     }
   };
 
@@ -102,7 +99,7 @@ export default function AdminPage() {
         <div className="flex gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 mb-6">
           <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-amber-300">
-            Model uploads take effect immediately without server restart. 
+            Model uploads take effect immediately without server restart.
             Ensure the model is validated before uploading to production.
           </p>
         </div>
@@ -145,7 +142,7 @@ export default function AdminPage() {
             <Upload className="w-4 h-4 text-primary-400" />
             Upload New Model
           </h2>
-          
+
           <div {...getRootProps()}
             className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer mb-4 transition-all
               ${isDragActive ? 'border-primary-500 bg-primary-500/10' : 'border-white/10 hover:border-primary-500/50'}`}>
@@ -182,8 +179,8 @@ export default function AdminPage() {
           {/* Upload result */}
           {uploadResult && (
             <div className={`mt-4 p-4 rounded-xl flex items-start gap-3 
-              ${uploadResult.error 
-                ? 'bg-red-500/10 border border-red-500/20' 
+              ${uploadResult.error
+                ? 'bg-red-500/10 border border-red-500/20'
                 : 'bg-primary-500/10 border border-primary-500/20'}`}>
               {uploadResult.error
                 ? <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
@@ -195,7 +192,7 @@ export default function AdminPage() {
                 </p>
                 {uploadResult.version && (
                   <p className="text-gray-400 text-xs mt-1">
-                    New version: <code>{uploadResult.version}</code> · 
+                    New version: <code>{uploadResult.version}</code> ·
                     Previous: <code>{uploadResult.previous_version}</code>
                   </p>
                 )}

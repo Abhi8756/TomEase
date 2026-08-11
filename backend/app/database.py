@@ -125,7 +125,22 @@ class Database:
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
         
-        self.engine = create_engine(database_url)
+        # Attempt to create engine.
+        # Behavior:
+        # - If no DATABASE_URL provided -> use local SQLite (developer convenience).
+        # - If DATABASE_URL is provided but driver is missing -> raise so deployment fails fast.
+        try:
+            self.engine = create_engine(database_url)
+        except ModuleNotFoundError as e:
+            if not os.getenv("DATABASE_URL"):
+                # Local dev: no DATABASE_URL set, fall back to SQLite
+                print(f"[WARN] Database driver missing: {e}. No DATABASE_URL set — falling back to SQLite for local development.")
+                database_url = "sqlite:///./tomato_disease.db"
+                self.engine = create_engine(database_url)
+            else:
+                # In production/CI the DATABASE_URL was set but driver missing — fail fast
+                print(f"[ERROR] Database driver missing: {e}. DATABASE_URL is set; aborting startup to avoid silent fallback to SQLite.")
+                raise
         self.SessionLocal = sessionmaker(bind=self.engine)
         
         # Create tables

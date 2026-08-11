@@ -1,0 +1,7 @@
+{
+  "forbidden_pesticides": [],
+  "chemical_whitelist": [],
+  "require_human_review_if_dose_present": true,
+  "dose_regex": "\\\\b(\\d+(?:\\.\\d+)?\\s?(?:mg|g|kg|ml|l|litre|ppm|%))\\\\b",
+  "notes": "Update chemical_whitelist and forbidden_pesticides with local/regional lists."
+}
