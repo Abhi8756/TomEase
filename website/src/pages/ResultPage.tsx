@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, AlertTriangle, CheckCircle, Scan, ChevronRight, Eye, EyeOff, Users, Bug, Shield, Pill, Droplet, Leaf, Sparkles } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, CheckCircle, Scan, ChevronRight, Eye, EyeOff, Users, Bug, Shield, Pill, Droplet, Leaf, Sparkles, BookOpen } from 'lucide-react';
 import { useStore } from '../store';
 import { useState } from 'react';
 import { API_BASE } from '../services/api';
@@ -268,8 +268,12 @@ export default function ResultPage() {
                 <Leaf className="w-4 h-4 text-emerald-400" />
                 <div className="text-sm font-semibold text-emerald-300">Natural / Organic</div>
               </div>
-              {remedy_natural ? (
-                <div className="pl-6 text-sm text-gray-200 leading-relaxed">{remedy_natural}</div>
+              {remedy_natural && remedy_natural.length > 0 ? (
+                <ul className="pl-6 space-y-1 text-sm text-gray-200">
+                  {remedy_natural.map((r, idx) => (
+                    <li key={idx} className="list-disc">{r}</li>
+                  ))}
+                </ul>
               ) : (
                 <div className="pl-6 text-sm text-gray-500 italic">No natural remedies found.</div>
               )}
@@ -281,8 +285,12 @@ export default function ResultPage() {
                 <Droplet className="w-4 h-4 text-cyan-400" />
                 <div className="text-sm font-semibold text-cyan-300">Chemical / Conventional</div>
               </div>
-              {remedy_chemical ? (
-                <div className="pl-6 text-sm text-gray-200 leading-relaxed">{remedy_chemical}</div>
+              {remedy_chemical && remedy_chemical.length > 0 ? (
+                <ul className="pl-6 space-y-1 text-sm text-gray-200">
+                  {remedy_chemical.map((r, idx) => (
+                    <li key={idx} className="list-disc">{r}</li>
+                  ))}
+                </ul>
               ) : (
                 <div className="pl-6 text-sm text-gray-500 italic">No chemical remedies found or requires expert review.</div>
               )}
@@ -311,6 +319,62 @@ export default function ResultPage() {
           History
         </button>
       </motion.div>
+
+      {/* Sources Section - Citation Grounding */}
+      {latestResult.sources && latestResult.sources.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+          className="mt-8 glass p-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none" />
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/30">
+                <BookOpen className="w-5 h-5 text-amber-400" />
+              </div>
+              <h3 className="font-bold text-white text-lg">Evidence Sources</h3>
+            </div>
+            
+            <p className="text-xs text-gray-400 mb-4">
+              This diagnosis is grounded in the following agricultural research sources:
+            </p>
+            
+            <div className="space-y-2">
+              {latestResult.sources.map((src: any, idx: number) => (
+                <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-white/3 border border-white/5 hover:border-amber-500/20 transition-colors">
+                  <div className="mt-1 px-2 py-0.5 bg-amber-500/20 rounded text-xs font-semibold text-amber-300">
+                    {src.id}
+                  </div>
+                  <div className="flex-1 text-sm">
+                    <div className="text-gray-200">{src.citation}</div>
+                    {src.page && src.page !== 'N/A' && (
+                      <div className="text-xs text-gray-500 mt-1">Page: {src.page}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {latestResult.confidence_note && (
+              <div className="mt-4 pt-4 border-t border-white/5">
+                <div className="text-xs text-gray-400">
+                  <span className="font-semibold text-amber-300">Evidence Quality:</span> {latestResult.confidence_note}
+                </div>
+              </div>
+            )}
+            
+            {latestResult.requires_human_review && (
+              <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-300">
+                    Chemical recommendations require verification with local agricultural experts and regional regulations.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

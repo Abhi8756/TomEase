@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Background
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict
 import os
 from datetime import datetime
 import uuid
@@ -73,11 +73,14 @@ class PredictionResponse(BaseModel):
     severity: str
     recommendations: List[str]
     cause: Optional[str] = None
-    prevention: Optional[str] = None
+    prevention: Optional[List[str]] = None  # Now a list
     remedy: Optional[str] = None
-    remedy_natural: Optional[str] = None
-    remedy_chemical: Optional[str] = None
+    remedy_natural: Optional[List[str]] = None  # Now a list
+    remedy_chemical: Optional[List[str]] = None  # Now a list
     rag_summary: Optional[str] = None
+    sources: Optional[List[Dict]] = None  # NEW: Citation sources
+    confidence_note: Optional[str] = None  # NEW: Evidence quality explanation
+    requires_human_review: Optional[bool] = False  # NEW: Flag for dose verification
     is_reliable: bool
     warning: Optional[str] = None
     timestamp: str
@@ -205,6 +208,17 @@ async def predict_disease(
         # Get disease recommendations
         recommendations = get_recommendations(result['disease'])
 
+        # Initialize all RAG-related variables with defaults
+        rag_summary = ""
+        cause = ""
+        prevention = []
+        remedy = ""
+        remedy_natural = []
+        remedy_chemical = []
+        sources = []
+        confidence_note = "No evidence available"
+        requires_review = False
+
         # Run RAG v2 query with enhanced context
         try:
             # Prepare context for RAG v2
@@ -241,28 +255,55 @@ async def predict_disease(
             
             # Prepare text for LLM synthesis
             if rag_results:
-                # Format context for LLM
-                rag_texts = [r.get("text", "") for r in rag_results]
-                rag_summary = "\n\n".join(rag_texts[:5])  # Top 5 chunks
+                # Format context for LLM - with structured source metadata
+                structured_sources = []
+                for i, r in enumerate(rag_results[:5], 1):  # Top 5
+                    src_id = f"S{i}"
+                    structured_sources.append({
+                        "id": src_id,
+                        "text": r.get("text", ""),
+                        "citation": r.get("citation", f"Source {i}"),
+                        "page": r.get("page", "N/A"),
+                        "authority": r.get("authority", "Unknown"),
+                        "topic": r.get("topic", "Disease Management")
+                    })
                 
-                # Synthesize structured answer via Groq LLM
-                synth = synthesize_structured(rag_summary)
+                # Synthesize structured answer via Groq LLM with source metadata
+                synth = synthesize_structured("", structured_sources=structured_sources)
                 cause = synth.get("cause") or ""
-                prevention = synth.get("prevention") or ""
+                prevention = synth.get("prevention") or []
                 remedy = synth.get("remedy") or ""
-                remedy_natural = synth.get("remedy_natural") or ""
-                remedy_chemical = synth.get("remedy_chemical") or ""
+                remedy_natural = synth.get("remedy_natural") or []
+                remedy_chemical = synth.get("remedy_chemical") or []
+                sources = synth.get("sources") or []
+                confidence_note = synth.get("confidence_note", "Evidence-based from RAG")
+                requires_review = synth.get("requires_human_review", False)
             else:
                 rag_summary = ""
-                cause = prevention = remedy = remedy_natural = remedy_chemical = ""
+                cause = ""
+                prevention = []
+                remedy = ""
+                remedy_natural = []
+                remedy_chemical = []
+                sources = []
+                confidence_note = "No RAG sources available"
+                requires_review = False
                 
         except Exception as e:
-            print(f"[WARN] RAG/LLM synthesis failed: {e}")
+            print(f"[ERROR] RAG/LLM synthesis failed: {str(e)}", flush=True)
             import traceback
-            traceback.print_exc()
+            error_trace = traceback.format_exc()
+            print(error_trace, flush=True)
             rag_results = []
             rag_summary = ""
-            cause = prevention = remedy = remedy_natural = remedy_chemical = ""
+            cause = ""
+            prevention = []
+            remedy = ""
+            remedy_natural = []
+            remedy_chemical = []
+            sources = []
+            confidence_note = f"Error during synthesis: {str(e)}"
+            requires_review = False
         
         # Save to database (async in background)
         if background_tasks:
@@ -281,25 +322,34 @@ async def predict_disease(
             if plot_id:
                 background_tasks.add_task(trigger_regional_alerts, result['disease'], plot_id)
         
-        return PredictionResponse(
-            scan_id=scan_id,
-            disease=result['disease'],
-            confidence=result['confidence'],
-            confidence_calibrated=result['confidence_calibrated'],
-            gradcam_url=gradcam_url,
-            severity=result['severity'],
-            recommendations=recommendations,
-            cause=cause,
-            prevention=prevention,
-            remedy=remedy,
-            remedy_natural=remedy_natural,
-            remedy_chemical=remedy_chemical,
-            rag_summary=rag_summary,
-            is_reliable=is_reliable,
-            warning=warning,
-            timestamp=datetime.utcnow().isoformat(),
-            image_uri=image_url
-        )
+        try:
+            return PredictionResponse(
+                scan_id=scan_id,
+                disease=result['disease'],
+                confidence=result['confidence'],
+                confidence_calibrated=result['confidence_calibrated'],
+                gradcam_url=gradcam_url,
+                severity=result['severity'],
+                recommendations=recommendations,
+                cause=cause,
+                prevention=prevention if isinstance(prevention, list) else [],
+                remedy=remedy,
+                remedy_natural=remedy_natural if isinstance(remedy_natural, list) else [],
+                remedy_chemical=remedy_chemical if isinstance(remedy_chemical, list) else [],
+                rag_summary=rag_summary,
+                sources=sources,
+                confidence_note=confidence_note,
+                requires_human_review=requires_review,
+                is_reliable=is_reliable,
+                warning=warning,
+                timestamp=datetime.utcnow().isoformat(),
+                image_uri=image_url
+            )
+        except Exception as e:
+            print(f"[ERROR] Failed to create PredictionResponse: {str(e)}", flush=True)
+            import traceback
+            print(traceback.format_exc(), flush=True)
+            raise HTTPException(500, f"Failed to format response: {str(e)}")
         
     except Exception as e:
         raise HTTPException(500, f"Prediction failed: {str(e)}")
