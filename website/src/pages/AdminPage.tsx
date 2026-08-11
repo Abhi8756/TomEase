@@ -16,7 +16,7 @@ export default function AdminPage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (accepted) => setModelFile(accepted[0] || null),
-    accept: { '': ['.pth', '.pt'] },
+    accept: { 'application/octet-stream': ['.pth', '.pt'] },
     maxFiles: 1,
   });
 
