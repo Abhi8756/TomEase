@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 # Your checkpoint file (adjust if needed)
-CHECKPOINT_PATH = "../CBAM_False_SUPCON_False_FISHR_False_DVD_False_best_test.pth"
+CHECKPOINT_PATH = "../CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth"
 OUTPUT_PATH = "resnet50_tomato_production.pth"
 
 class ResNet50TomatoModel(nn.Module):

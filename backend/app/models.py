@@ -15,7 +15,7 @@ class ResNet50TomatoModel(nn.Module):
     """
     ResNet50-based model matching the saved checkpoint architecture.
 
-    The checkpoint (CBAM_False_SUPCON_False_FISHR_False_DVD_False_best_test.pth)
+    The checkpoint (CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth)
     was trained with this exact structure:
 
         self.features   = nn.Sequential(conv1, bn1, relu, maxpool,
@@ -114,7 +114,7 @@ class ModelService:
           3. /app/models/model.pth (baked into Docker image)
           4. /app/models/resnet50_tomato.pth (legacy name)
         
-        Your .pth file: CBAM_False_SUPCON_False_FISHR_False_DVD_False_best_test.pth
+        Your .pth file: CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth
         Upload it via POST /admin/upload-model after deployment.
         """
         if checkpoint_path is None:
@@ -125,7 +125,7 @@ class ModelService:
                 "/app/models/resnet50_tomato.pth",
                 # Windows local dev fallback — looks for .pth in parent of backend/
                 os.path.join(os.path.dirname(__file__), "..", "..", 
-                             "CBAM_False_SUPCON_False_FISHR_False_DVD_False_best_test.pth"),
+                             "CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth"),
             ]
             for candidate in candidates:
                 candidate = os.path.normpath(candidate) if candidate else ""
@@ -136,7 +136,7 @@ class ModelService:
         
         if not checkpoint_path or not os.path.exists(checkpoint_path):
             print("[WARN] No model found. Upload your .pth via POST /admin/upload-model")
-            print("       Your file: CBAM_False_SUPCON_False_FISHR_False_DVD_False_best_test.pth")
+            print("       Your file: CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth")
             self.use_hf_space = False
             return
         

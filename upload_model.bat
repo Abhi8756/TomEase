@@ -3,7 +3,7 @@ REM Quick script to upload your model to the backend
 
 SET API_URL=https://tomato-api-xlik.onrender.com
 SET ADMIN_KEY=55994692270115581428323994038566
-SET MODEL_FILE=CBAM_False_SUPCON_False_FISHR_False_DVD_False_best_test.pth
+SET MODEL_FILE=CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth
 
 echo.
 echo 🚀 Uploading model to backend...

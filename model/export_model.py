@@ -18,7 +18,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 
 # ADJUST THESE PATHS TO YOUR NOTEBOOK SETUP
-CHECKPOINT_PATH = "C:\Abhijit Data\TomEase\CBAM_False_SUPCON_False_FISHR_False_DVD_False_best_test.pth"  # Your trained model
+CHECKPOINT_PATH = "C:\Abhijit Data\TomEase\CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth"  # Your trained model
 VALIDATION_DATA_PATH = "path/to/validation_dataset"  # For calibration
 OUTPUT_PATH = "resnet50_tomato_production.pth"
 
