@@ -117,25 +117,25 @@ class ModelInfo(BaseModel):
     accuracy_field: float
     total_scans: int
 
-async def _download_model_from_huggingface():
-    """
-    Auto-download the .pth model from Hugging Face on startup.
-    Triggered when MODEL_DRIVE_ID env var is set and model is not found locally.
-    """
-    model_repo = os.getenv("MODEL_DRIVE_ID", "").strip()
-    if not model_repo:
-        return  # No repo configured — rely on local MODEL_PATH
+# async def _download_model_from_huggingface():
+#     """
+#     Auto-download the .pth model from Hugging Face on startup.
+#     Triggered when MODEL_DRIVE_ID env var is set and model is not found locally.
+#     """
+#     model_repo = os.getenv("MODEL_DRIVE_ID", "").strip()
+#     if not model_repo:
+#         return  # No repo configured — rely on local MODEL_PATH
 
-    model_dest = os.path.join("storage", "models", "model.pth")
-    os.makedirs(os.path.dirname(model_dest), exist_ok=True)
+#     model_dest = os.path.join("storage", "models", "model.pth")
+#     os.makedirs(os.path.dirname(model_dest), exist_ok=True)
 
-    if os.path.exists(model_dest):
-        print(f"[MODEL] Found cached model at {model_dest}, skipping download")
-        os.environ.setdefault("MODEL_PATH", model_dest)
-        return
+#     if os.path.exists(model_dest):
+#         print(f"[MODEL] Found cached model at {model_dest}, skipping download")
+#         os.environ.setdefault("MODEL_PATH", model_dest)
+#         return
 
-    print(f"[MODEL] Scheduling download from Hugging Face: {model_repo} (non-blocking)")
-    # Don't actually download here — do it in background task
+#     print(f"[MODEL] Scheduling download from Hugging Face: {model_repo} (non-blocking)")
+#     # Don't actually download here — do it in background task
 
 
 # async def _background_model_download():
@@ -211,7 +211,7 @@ async def startup_event():
     
     print("[OK] API Ready - Accepting requests", flush=True)
 
-    
+
 async def _ensure_rag_ready():
     """Lazy-load RAG service and index on first query to save startup memory"""
     global rag_service, _rag_index_built
