@@ -29,7 +29,11 @@ app = FastAPI(
 )
 
 # CORS configuration - read from env or use defaults
-frontend_origins_str = os.getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+# Updated default string to include Vercel domain
+frontend_origins_str = os.getenv(
+    "FRONTEND_ORIGINS", 
+    "http://localhost:5173,http://127.0.0.1:5173,https://tom-ease-five.vercel.app"
+)
 frontend_origins = [origin.strip() for origin in frontend_origins_str.split(",")]
 
 print(f"[CORS] Allowed origins: {frontend_origins}", flush=True)
