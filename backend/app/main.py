@@ -28,26 +28,45 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration - read from env or use defaults
-# Updated default string to include Vercel domain
-frontend_origins_str = os.getenv(
-    "FRONTEND_ORIGINS", 
-    "http://localhost:5173,http://127.0.0.1:5173,https://tom-ease-five.vercel.app"
-)
-frontend_origins = [origin.strip() for origin in frontend_origins_str.split(",")]
+# Parse allowed origins cleanly
+frontend_origins_str = os.getenv("FRONTEND_ORIGINS", "")
+frontend_origins = [origin.strip().rstrip("/") for origin in frontend_origins_str.split(",") if origin.strip()]
 
-print(f"[CORS] Allowed origins: {frontend_origins}", flush=True)
+# Add default origins if environment variable isn't fully populating
+default_origins = [
+    "https://tom-ease-five.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+]
+for origin in default_origins:
+    if origin not in frontend_origins:
+        frontend_origins.append(origin)
 
+print(f"[CORS] Final allowed origins: {frontend_origins}", flush=True)
+
+# MUST be added before including any routers or mounting static files
 app.add_middleware(
     CORSMiddleware,
     allow_origins=frontend_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Matches Vercel domain & preview deployments
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
-    max_age=3600,
     expose_headers=["*"],
+    max_age=3600,
 )
 
+@app.options("/{full_path:path}")
+async def preflight_handler(full_path: str):
+    return JSONResponse(
+        content={"status": "ok"},
+        headers={
+            "Access-Control-Allow-Origin": "https://tom-ease-five.vercel.app",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+    
 from fastapi.staticfiles import StaticFiles
 
 # Auth routes
