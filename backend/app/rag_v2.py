@@ -562,7 +562,7 @@ class EnhancedRAGService:
         
         query_emb = self.model.encode([query], convert_to_numpy=True)[0]
         
-        if isinstance(self.index, faiss.Index):
+        if _HAS_FAISS and isinstance(self.index, faiss.Index):
             # FAISS retrieval
             faiss.normalize_L2(query_emb.reshape(1, -1))
             distances, indices = self.index.search(query_emb.reshape(1, -1), min(top_k, len(self.chunks)))

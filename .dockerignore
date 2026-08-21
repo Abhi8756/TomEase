@@ -73,7 +73,7 @@ mobile/dist/
 mobile/.expo/
 
 # ML Models (only needed by backend, not frontend)
-*.pth
+# Exclude other models but NOT the main one
 *.pt
 *.pkl
 *.h5

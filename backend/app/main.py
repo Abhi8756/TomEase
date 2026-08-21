@@ -280,7 +280,7 @@ async def predict_disease(
                     })
                 
                 # Synthesize structured answer via Groq LLM with source metadata
-                synth = synthesize_structured("", structured_sources=structured_sources)
+                synth = synthesize_structured("", structured_sources=structured_sources, disease=result['disease'])
                 cause = synth.get("cause") or ""
                 prevention = synth.get("prevention") or []
                 remedy = synth.get("remedy") or ""
@@ -379,6 +379,7 @@ async def get_model_info():
     )
 
 @app.post("/admin/upload-model")
+@app.post("/model/upload")
 async def upload_model(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
@@ -394,10 +395,15 @@ async def upload_model(
         raise HTTPException(403, "Admin access required")
     
     try:
-        # Save uploaded file temporarily
-        temp_path = f"/tmp/{file.filename}"
+        # Save uploaded file to persistent storage directory
+        os.makedirs("storage/models", exist_ok=True)
+        temp_path = f"storage/models/{file.filename}"
+        
         with open(temp_path, "wb") as f:
-            f.write(await file.read())
+            content = await file.read()
+            f.write(content)
+        
+        print(f"[MODEL] Uploaded file to: {temp_path}")
         
         # Validate model architecture
         is_valid, error = await model_service.validate_checkpoint(temp_path)
@@ -405,24 +411,28 @@ async def upload_model(
             os.remove(temp_path)
             raise HTTPException(400, f"Invalid model: {error}")
         
-        # Upload to R2 with version tag
-        version = f"v{datetime.utcnow():%Y%m%d_%H%M%S}"
-        await storage.upload_model(temp_path, version)
+        print(f"[MODEL] Validation passed")
         
-        # Hot-swap model
+        # Hot-swap model (reload without restart)
+        version = f"v{datetime.utcnow():%Y%m%d_%H%M%S}"
         await model_service.load_model(temp_path, version)
         
-        # Cleanup
-        os.remove(temp_path)
+        print(f"[MODEL] Hot-swapped to version: {version}")
         
+        # Keep the file in storage for future reference
         return {
             "status": "success",
             "message": "Model updated successfully",
             "version": version,
-            "previous_version": model_service.get_previous_version()
+            "model_file": file.filename
         }
         
+    except HTTPException as he:
+        raise he
     except Exception as e:
+        print(f"[MODEL] Upload failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(500, f"Model upload failed: {str(e)}")
 
 @app.get("/admin/model-history")

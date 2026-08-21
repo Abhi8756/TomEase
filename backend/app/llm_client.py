@@ -4,6 +4,8 @@ import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional
 
+from .disease_fallback import get_fallback as _get_disease_fallback
+
 
 def _read_env():
     # Only support GROQ as the remote LLM provider in this deployment.
@@ -38,7 +40,7 @@ def call_chat_completion(system: str, user_messages: str, max_tokens: int = 512)
         }
         
         payload = {
-            "model": "llama-3.3-70b-versatile",  # Updated to current Groq model
+            "model": "llama-3.3-70b",  # Updated to current Groq model
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_messages}
@@ -94,12 +96,13 @@ def call_chat_completion(system: str, user_messages: str, max_tokens: int = 512)
         return None
 
 
-def synthesize_structured(snippets: str, structured_sources: list = None) -> Dict[str, Any]:
+def synthesize_structured(snippets: str, structured_sources: list = None, disease: str = None) -> Dict[str, Any]:
     """Ask the remote LLM to produce citation-grounded structured fields.
     
     Args:
         snippets: Plain text snippets (fallback)
         structured_sources: List of dicts with {id, text, citation, page, authority, topic}
+        disease: Disease name (used for static fallback when LLM unavailable)
     
     Returns:
         Dict with cause, prevention, remedy_natural, remedy_chemical, sources with citations, etc.
@@ -167,7 +170,11 @@ def synthesize_structured(snippets: str, structured_sources: list = None) -> Dic
 
     out = call_chat_completion(system, user_messages, max_tokens=1024)
     if not out:
-        # Fallback to heuristic summarizer
+        # Try static disease fallback first (grounded in uploaded docs)
+        if disease:
+            print(f"[LLM] Using static disease fallback for '{disease}'")
+            return _get_disease_fallback(disease)
+        # Last resort: heuristic summarizer
         return _heuristic_summarize(snippets, structured_sources)
 
     # Try to parse JSON from the LLM response
