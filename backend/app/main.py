@@ -118,7 +118,8 @@ async def _download_model_from_gdrive():
         import gdown
         print(f"[MODEL] Downloading model from Google Drive (ID: {gdrive_id})…")
         url = f"https://drive.google.com/uc?id={gdrive_id}"
-        gdown.download(url, model_dest, quiet=False, fuzzy=True)
+        # Note: fuzzy parameter is deprecated in newer gdown versions
+        gdown.download(url, model_dest, quiet=False)
         if os.path.exists(model_dest) and os.path.getsize(model_dest) > 1_000_000:
             print(f"[MODEL] Download complete → {model_dest} ({os.path.getsize(model_dest)//1024//1024} MB)")
             os.environ["MODEL_PATH"] = model_dest
