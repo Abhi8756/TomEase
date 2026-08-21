@@ -38,8 +38,26 @@ try:
 except Exception:
     _HAS_ANNOY = False
 
-from sentence_transformers import SentenceTransformer, CrossEncoder
-import numpy as np
+# Defer heavy imports - loaded lazily in get_model()
+_SentenceTransformer = None
+_CrossEncoder = None
+_np = None
+
+def _init_heavy_imports():
+    """Initialize heavy ML libraries on demand"""
+    global SentenceTransformer, CrossEncoder, np, _SentenceTransformer, _CrossEncoder, _np
+    if _SentenceTransformer is None:
+        print("[RAG v2] Initializing heavy ML imports...")
+        from sentence_transformers import SentenceTransformer as ST
+        from sentence_transformers import CrossEncoder as CE
+        import numpy as N
+        _SentenceTransformer = ST
+        _CrossEncoder = CE
+        _np = N
+        SentenceTransformer = ST
+        CrossEncoder = CE
+        np = N
+    return _SentenceTransformer, _CrossEncoder, _np
 
 # Storage paths
 STORAGE_DIR = Path(__file__).parent.parent / "storage" / "vector_index_v2"
@@ -123,7 +141,7 @@ class DocumentMetadata:
 class Chunk:
     """Represents a document chunk with metadata"""
     text: str
-    embedding: Optional[np.ndarray] = None
+    embedding: Optional[Any] = None  # np.ndarray - deferred import
     metadata: Optional[DocumentMetadata] = None
     chunk_id: int = 0
     score: float = 0.0
@@ -370,6 +388,7 @@ class EnhancedRAGService:
         """Lazily load SentenceTransformer model"""
         if self.model is None:
             print(f"[RAG v2] Lazily loading SentenceTransformer model: {self.embedding_model_name}...")
+            _init_heavy_imports()
             self.model = SentenceTransformer(self.embedding_model_name)
         return self.model
 
@@ -378,6 +397,7 @@ class EnhancedRAGService:
         if self.reranker is None and self.use_reranker:
             try:
                 print("[RAG v2] Lazily loading CrossEncoder reranker (ms-marco-MiniLM-L-6-v2)...")
+                _init_heavy_imports()
                 self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
             except Exception as e:
                 print(f"[WARN] Could not load CrossEncoder reranker: {e}")

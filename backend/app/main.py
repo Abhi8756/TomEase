@@ -59,16 +59,8 @@ model_service = ModelService()
 # database = Database()  # Imported from database.py
 storage = LocalStorage()
 
-# Initialize RAG v2 (with v1 fallback)
-try:
-    rag_service = EnhancedRAGService()
-    print("[INFO] Using RAG v2 (Enhanced)")
-except Exception as e:
-    print(f"[WARN] RAG v2 failed to initialize: {e}")
-    rag_service = RAGv1()
-    print("[INFO] Fallback to RAG v1")
-
-# Track if RAG index has been built
+# RAG service initialized lazily (not on startup to save memory)
+rag_service = None
 _rag_index_built = False
 
 # Models
@@ -142,8 +134,18 @@ async def startup_event():
     print("[OK] API Ready - Model loaded")
 
 async def _ensure_rag_ready():
-    """Lazy-load RAG index on first query to save startup memory"""
-    global _rag_index_built
+    """Lazy-load RAG service and index on first query to save startup memory"""
+    global rag_service, _rag_index_built
+    
+    if rag_service is None:
+        try:
+            rag_service = EnhancedRAGService()
+            print("[INFO] RAG v2 (Enhanced) loaded")
+        except Exception as e:
+            print(f"[WARN] RAG v2 failed to initialize: {e}")
+            rag_service = RAGv1()
+            print("[INFO] Fallback to RAG v1")
+    
     if not _rag_index_built:
         try:
             import anyio
