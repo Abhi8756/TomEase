@@ -20,6 +20,7 @@ python-jose[cryptography]>=3.3.0
 # Google Drive model auto-download
 gdown>=5.1.0
 # RAG / embeddings
+transformers<4.40.0
 sentence-transformers>=2.2.2
 PyMuPDF>=1.22.3
 faiss-cpu>=1.7.0
