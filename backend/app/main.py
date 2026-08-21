@@ -8,7 +8,7 @@ from datetime import datetime
 import uuid
 from dotenv import load_dotenv
 
-# Load .env file (works locally; in production env vars come from IceCloud dashboard)
+# Load .env file (works locally; in production env vars come from Render dashboard)
 load_dotenv()
 
 from .models import ModelService
@@ -28,10 +28,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS for mobile app
+# CORS configuration - read from env or use defaults
+frontend_origins_str = os.getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+frontend_origins = [origin.strip() for origin in frontend_origins_str.split(",")]
+
+print(f"[CORS] Allowed origins: {frontend_origins}", flush=True)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production
+    allow_origins=frontend_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
