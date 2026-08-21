@@ -20,6 +20,14 @@ export interface ScanResult {
   warning?: string;
   timestamp: string;
   image_uri?: string;
+  cause?: string;
+  prevention?: string[];
+  remedy?: string;
+  remedy_natural?: string[];
+  remedy_chemical?: string[];
+  sources?: any[];
+  confidence_note?: string;
+  requires_human_review?: boolean;
 }
 
 interface AppState {

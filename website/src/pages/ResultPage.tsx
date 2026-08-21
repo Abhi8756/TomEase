@@ -39,7 +39,7 @@ export default function ResultPage() {
   }
 
   const { disease, confidence, gradcam_url, severity, recommendations, is_reliable, warning, image_uri } = latestResult;
-  const { cause, prevention, remedy, rag_summary, remedy_natural, remedy_chemical } = latestResult as any;
+  const { cause, prevention, remedy_natural, remedy_chemical } = latestResult;
   const color = diseaseColors[disease] || '#6b7280';
   const info = diseaseInfo[disease] || { cause: 'Unknown' };
   const confPct = (confidence * 100).toFixed(1);
@@ -271,7 +271,7 @@ export default function ResultPage() {
               </div>
               {remedy_natural && remedy_natural.length > 0 ? (
                 <ul className="pl-6 space-y-1 text-sm text-gray-200">
-                  {remedy_natural.map((r, idx) => (
+                  {remedy_natural.map((r: string, idx: number) => (
                     <li key={idx} className="list-disc">{r}</li>
                   ))}
                 </ul>
@@ -288,7 +288,7 @@ export default function ResultPage() {
               </div>
               {remedy_chemical && remedy_chemical.length > 0 ? (
                 <ul className="pl-6 space-y-1 text-sm text-gray-200">
-                  {remedy_chemical.map((r, idx) => (
+                  {remedy_chemical.map((r: string, idx: number) => (
                     <li key={idx} className="list-disc">{r}</li>
                   ))}
                 </ul>
