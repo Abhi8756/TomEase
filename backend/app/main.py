@@ -97,14 +97,14 @@ class ModelInfo(BaseModel):
     accuracy_field: float
     total_scans: int
 
-async def _download_model_from_gdrive():
+async def _download_model_from_huggingface():
     """
-    Auto-download the .pth model from Google Drive on startup.
-    Triggered when MODEL_GDRIVE_ID env var is set and model is not found locally.
+    Auto-download the .pth model from Hugging Face on startup.
+    Triggered when MODEL_DRIVE_ID env var is set and model is not found locally.
     """
-    gdrive_id = os.getenv("MODEL_GDRIVE_ID", "").strip()
-    if not gdrive_id:
-        return  # No GDrive ID configured — rely on local MODEL_PATH
+    model_repo = os.getenv("MODEL_DRIVE_ID", "").strip()
+    if not model_repo:
+        return  # No repo configured — rely on local MODEL_PATH
 
     model_dest = os.path.join("storage", "models", "model.pth")
     os.makedirs(os.path.dirname(model_dest), exist_ok=True)
@@ -115,26 +115,26 @@ async def _download_model_from_gdrive():
         return
 
     try:
-        import gdown
-        print(f"[MODEL] Downloading model from Google Drive (ID: {gdrive_id})…")
-        url = f"https://drive.google.com/uc?id={gdrive_id}"
-        # Note: fuzzy parameter is deprecated in newer gdown versions
-        gdown.download(url, model_dest, quiet=False)
-        if os.path.exists(model_dest) and os.path.getsize(model_dest) > 1_000_000:
-            print(f"[MODEL] Download complete → {model_dest} ({os.path.getsize(model_dest)//1024//1024} MB)")
-            os.environ["MODEL_PATH"] = model_dest
-        else:
-            print("[WARN] GDrive download produced an empty/missing file. Model not loaded.")
+        from huggingface_hub import hf_hub_download
+        print(f"[MODEL] Downloading from Hugging Face: {model_repo}…")
+        downloaded_path = hf_hub_download(
+            repo_id=model_repo,
+            filename="CBAM_False_SUPCON_False_FISHR_False_DVD_False_best_test.pth",
+            cache_dir="./storage/models"
+        )
+        print(f"[MODEL] Download complete → {downloaded_path}")
+        os.environ["MODEL_PATH"] = downloaded_path
     except Exception as e:
-        print(f"[WARN] GDrive model download failed: {e}. API will start without a model.")
+        print(f"[WARN] Model download from Hugging Face failed: {e}")
+        print(f"[WARN] API will start without a model. Upload via POST /admin/upload-model")
 
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and load model on startup"""
     await database.connect()
-    # Auto-download model from Google Drive if MODEL_GDRIVE_ID is set
-    await _download_model_from_gdrive()
+    # Auto-download model from Hugging Face if MODEL_DRIVE_ID is set
+    await _download_model_from_huggingface()
     await model_service.load_model()
     # Build or load RAG index (runs in background thread to avoid blocking event loop)
     import anyio
