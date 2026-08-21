@@ -22,6 +22,40 @@ from .rag import RAGService as RAGv1  # Keep v1 as fallback
 from .rag_v2 import EnhancedRAGService  # New v2
 from .llm_client import synthesize_structured
 
+# app = FastAPI(
+#     title="Tomato Leaf Disease Detection API",
+#     description="Production API for tomato disease classification with GradCAM",
+#     version="1.0.0"
+# )
+
+# # Parse allowed origins cleanly
+# frontend_origins_str = os.getenv("FRONTEND_ORIGINS", "")
+# frontend_origins = [origin.strip().rstrip("/") for origin in frontend_origins_str.split(",") if origin.strip()]
+
+# # Add default origins if environment variable isn't fully populating
+# default_origins = [
+#     "https://tom-ease-five.vercel.app",
+#     "http://localhost:5173",
+#     "http://127.0.0.1:5173"
+# ]
+# for origin in default_origins:
+#     if origin not in frontend_origins:
+#         frontend_origins.append(origin)
+
+# print(f"[CORS] Final allowed origins: {frontend_origins}", flush=True)
+
+# # MUST be added before including any routers or mounting static files
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=frontend_origins,
+#     allow_origin_regex=r"https://.*\.vercel\.app",  # Matches Vercel domain & preview deployments
+#     allow_credentials=True,
+#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+#     allow_headers=["*"],
+#     expose_headers=["*"],
+#     max_age=3600,
+# )
+
 app = FastAPI(
     title="Tomato Leaf Disease Detection API",
     description="Production API for tomato disease classification with GradCAM",
@@ -44,28 +78,31 @@ for origin in default_origins:
 
 print(f"[CORS] Final allowed origins: {frontend_origins}", flush=True)
 
-# MUST be added before including any routers or mounting static files
+# Add CORS Middleware — DO NOT ADD ANY @app.options ROUTE BELOW THIS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=frontend_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",  # Matches Vercel domain & preview deployments
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=3600,
 )
 
-@app.options("/{full_path:path}")
-async def preflight_handler(full_path: str):
-    return JSONResponse(
-        content={"status": "ok"},
-        headers={
-            "Access-Control-Allow-Origin": "https://tom-ease-five.vercel.app",
-            "Access-Control-Allow-Methods": "*",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
+# ❌ REMOVED: @app.options("/{full_path:path}") 
+# (Deleting this lets CORSMiddleware handle preflights for all endpoints automatically)
+
+# @app.options("/{full_path:path}")
+# async def preflight_handler(full_path: str):
+#     return JSONResponse(
+#         content={"status": "ok"},
+#         headers={
+#             "Access-Control-Allow-Origin": "https://tom-ease-five.vercel.app",
+#             "Access-Control-Allow-Methods": "*",
+#             "Access-Control-Allow-Headers": "*",
+#         }
+#     )
     
 from fastapi.staticfiles import StaticFiles
 
