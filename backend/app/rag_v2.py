@@ -347,17 +347,15 @@ class EnhancedRAGService:
         """
         self.corpus_path = corpus_path or CORPUS_DIR
         self.embedding_model_name = embedding_model
-        self.model = SentenceTransformer(embedding_model)
-        self.embedding_dim = self.model.get_sentence_embedding_dimension()
+        self.model = None  # Lazily loaded
+        self.embedding_dim = 384  # Standard for all-MiniLM-L6-v2
         
-        # Cross-encoder for reranking
+        # Cross-encoder for reranking (disable by default in production to save ~120MB memory)
+        if os.getenv("ENVIRONMENT") == "production":
+            use_reranker = False
+            
         self.use_reranker = use_reranker
-        if use_reranker:
-            try:
-                self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-            except Exception:
-                print("Warning: Could not load reranker, falling back to embedding-only")
-                self.use_reranker = False
+        self.reranker = None  # Lazily loaded
         
         self.index = None
         self.chunks: List[Chunk] = []
@@ -365,8 +363,26 @@ class EnhancedRAGService:
         self.index_path = STORAGE_DIR / "faiss_v2.index"
         self.embeddings_path = STORAGE_DIR / "embeddings_v2.npy"
         
-        print(f"[RAG v2] Initialized with embedding model: {embedding_model}")
+        print(f"[RAG v2] Initialized with embedding model: {embedding_model} (lazy)")
         print(f"[RAG v2] Reranker enabled: {self.use_reranker}")
+        
+    def get_model(self):
+        """Lazily load SentenceTransformer model"""
+        if self.model is None:
+            print(f"[RAG v2] Lazily loading SentenceTransformer model: {self.embedding_model_name}...")
+            self.model = SentenceTransformer(self.embedding_model_name)
+        return self.model
+
+    def get_reranker(self):
+        """Lazily load CrossEncoder reranker"""
+        if self.reranker is None and self.use_reranker:
+            try:
+                print("[RAG v2] Lazily loading CrossEncoder reranker (ms-marco-MiniLM-L-6-v2)...")
+                self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+            except Exception as e:
+                print(f"[WARN] Could not load CrossEncoder reranker: {e}")
+                self.use_reranker = False
+        return self.reranker
     
     def gather_documents(self) -> List[Path]:
         """Gather all documents from corpus"""
@@ -494,7 +510,7 @@ class EnhancedRAGService:
         # Generate embeddings
         print("[RAG v2] Generating embeddings...")
         texts = [chunk.text for chunk in all_chunks]
-        embeddings = self.model.encode(texts, show_progress_bar=True, convert_to_numpy=True)
+        embeddings = self.get_model().encode(texts, show_progress_bar=True, convert_to_numpy=True)
         
         # Store embeddings in chunks
         for chunk, emb in zip(all_chunks, embeddings):
@@ -560,7 +576,7 @@ class EnhancedRAGService:
         if self.index is None:
             raise RuntimeError("Index not initialized")
         
-        query_emb = self.model.encode([query], convert_to_numpy=True)[0]
+        query_emb = self.get_model().encode([query], convert_to_numpy=True)[0]
         
         if _HAS_FAISS and isinstance(self.index, faiss.Index):
             # FAISS retrieval
@@ -670,7 +686,11 @@ class EnhancedRAGService:
     def cross_encoder_rerank(self, query: str, candidates: List[Tuple[Chunk, float]], 
                             top_k: int = 5) -> List[Tuple[Chunk, float]]:
         """Apply cross-encoder reranking for final top-k selection"""
-        if not self.use_reranker or not hasattr(self, 'reranker'):
+        if not self.use_reranker:
+            return candidates[:top_k]
+        
+        reranker = self.get_reranker()
+        if reranker is None:
             return candidates[:top_k]
         
         try:
@@ -678,7 +698,7 @@ class EnhancedRAGService:
             pairs = [[query, chunk.text] for chunk, _ in candidates]
             
             # Get cross-encoder scores
-            ce_scores = self.reranker.predict(pairs)
+            ce_scores = reranker.predict(pairs)
             
             # Combine with existing scores (weighted average)
             reranked = []
