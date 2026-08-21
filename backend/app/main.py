@@ -92,10 +92,43 @@ class ModelInfo(BaseModel):
     accuracy_field: float
     total_scans: int
 
+async def _download_model_from_gdrive():
+    """
+    Auto-download the .pth model from Google Drive on startup.
+    Triggered when MODEL_GDRIVE_ID env var is set and model is not found locally.
+    """
+    gdrive_id = os.getenv("MODEL_GDRIVE_ID", "").strip()
+    if not gdrive_id:
+        return  # No GDrive ID configured — rely on local MODEL_PATH
+
+    model_dest = os.path.join("storage", "models", "model.pth")
+    os.makedirs(os.path.dirname(model_dest), exist_ok=True)
+
+    if os.path.exists(model_dest):
+        print(f"[MODEL] Found cached model at {model_dest}, skipping download")
+        os.environ.setdefault("MODEL_PATH", model_dest)
+        return
+
+    try:
+        import gdown
+        print(f"[MODEL] Downloading model from Google Drive (ID: {gdrive_id})…")
+        url = f"https://drive.google.com/uc?id={gdrive_id}"
+        gdown.download(url, model_dest, quiet=False, fuzzy=True)
+        if os.path.exists(model_dest) and os.path.getsize(model_dest) > 1_000_000:
+            print(f"[MODEL] Download complete → {model_dest} ({os.path.getsize(model_dest)//1024//1024} MB)")
+            os.environ["MODEL_PATH"] = model_dest
+        else:
+            print("[WARN] GDrive download produced an empty/missing file. Model not loaded.")
+    except Exception as e:
+        print(f"[WARN] GDrive model download failed: {e}. API will start without a model.")
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and load model on startup"""
     await database.connect()
+    # Auto-download model from Google Drive if MODEL_GDRIVE_ID is set
+    await _download_model_from_gdrive()
     await model_service.load_model()
     # Build or load RAG index (runs in background thread to avoid blocking event loop)
     import anyio
@@ -415,16 +448,27 @@ async def upload_model(
         
         # Hot-swap model (reload without restart)
         version = f"v{datetime.utcnow():%Y%m%d_%H%M%S}"
-        await model_service.load_model(temp_path, version)
         
+        # Copy checkpoint file to versioned filename in storage
+        versioned_path = await storage.upload_model(temp_path, version)
+        
+        # Load model using versioned path
+        await model_service.load_model(versioned_path, version)
+        
+        # Clean up the original temp file
+        try:
+            if os.path.exists(temp_path) and os.path.abspath(temp_path) != os.path.abspath(versioned_path):
+                os.remove(temp_path)
+        except Exception as cleanup_err:
+            print(f"[WARN] Failed to clean up temp file {temp_path}: {cleanup_err}")
+            
         print(f"[MODEL] Hot-swapped to version: {version}")
         
-        # Keep the file in storage for future reference
         return {
             "status": "success",
             "message": "Model updated successfully",
             "version": version,
-            "model_file": file.filename
+            "model_file": f"{version}.pth"
         }
         
     except HTTPException as he:

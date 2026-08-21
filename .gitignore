@@ -64,7 +64,11 @@ logs/
 # Temporary
 tmp/
 temp/
-storage/
+
+# Storage — keep RAG docs and vector index, ignore large binaries
+storage/images/
+storage/gradcams/
+storage/models/
 
 # Test
 test_images/
