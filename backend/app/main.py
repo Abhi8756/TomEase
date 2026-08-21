@@ -169,53 +169,49 @@ async def _download_model_from_huggingface():
 #         print(f"[WARN] API will start without a model. Upload via POST /admin/upload-model")
 
 async def _background_model_download():
-    """Background task to download and LOAD model after API is ready"""
+    """Background task to download and hot-load model into memory after startup"""
     import asyncio
-    await asyncio.sleep(2)  # Wait for API to be fully ready
+    await asyncio.sleep(1)  # Brief pause to let Uvicorn complete startup bindings
     
     model_repo = os.getenv("MODEL_DRIVE_ID", "").strip()
     if not model_repo:
+        print("[MODEL] No MODEL_DRIVE_ID provided. Skipping download.")
         return
 
-    model_dest = os.path.join("storage", "models", "model.pth")
-    
     try:
         from huggingface_hub import hf_hub_download
-        print(f"[MODEL] [BACKGROUND] Downloading from Hugging Face: {model_repo}…")
+        print(f"[MODEL] [BACKGROUND] Downloading from Hugging Face: {model_repo}…", flush=True)
+        
         downloaded_path = hf_hub_download(
             repo_id=model_repo,
             filename="CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth",
             cache_dir="./storage/models"
         )
-        print(f"[MODEL] [BACKGROUND] Download complete → {downloaded_path}")
         
-        # =========================================================
-        # ADD THIS LINE: Explicitly load the model into model_service
-        # =========================================================
+        # Set environment variable and load model directly into memory
+        os.environ["MODEL_PATH"] = downloaded_path
+        print(f"[MODEL] [BACKGROUND] Download complete → {downloaded_path}", flush=True)
+        
         await model_service.load_model(downloaded_path)
-        print("[MODEL] [BACKGROUND] Model successfully loaded into memory!")
+        print("[MODEL] [OK] Model successfully loaded into memory!", flush=True)
         
     except Exception as e:
-        print(f"[WARN] Model download/load from Hugging Face failed: {e}")
+        print(f"[WARN] Model download/load from Hugging Face failed: {e}", flush=True)
 
-        
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database and load model on startup"""
+    """Initialize database and schedule background model download"""
     await database.connect()
-    # Check if model cached; if not, schedule background download
-    await _download_model_from_huggingface()
-    # Try to load cached model (won't fail if missing — model_service handles it)
-    try:
-        await model_service.load_model()
-    except Exception as e:
-        print(f"[WARN] Could not load model on startup: {e}. Will retry on first request.")
-    print("[OK] API Ready - Accepting requests")
+    print("[OK] Database connected", flush=True)
     
-    # Start background model download task (non-blocking)
+    # Non-blocking background task handles downloading & hot-loading
     import asyncio
     asyncio.create_task(_background_model_download())
+    
+    print("[OK] API Ready - Accepting requests", flush=True)
 
+    
 async def _ensure_rag_ready():
     """Lazy-load RAG service and index on first query to save startup memory"""
     global rag_service, _rag_index_built
