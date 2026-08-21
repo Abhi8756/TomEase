@@ -109,18 +109,38 @@ async def _download_model_from_huggingface():
         os.environ.setdefault("MODEL_PATH", model_dest)
         return
 
+    print(f"[MODEL] Scheduling download from Hugging Face: {model_repo} (non-blocking)")
+    # Don't actually download here — do it in background task
+
+
+async def _background_model_download():
+    """Background task to download model after API is ready"""
+    import asyncio
+    await asyncio.sleep(2)  # Wait for API to be fully ready
+    
+    model_repo = os.getenv("MODEL_DRIVE_ID", "").strip()
+    if not model_repo:
+        return
+
+    model_dest = os.path.join("storage", "models", "model.pth")
+    
+    if os.path.exists(model_dest):
+        print(f"[MODEL] Model already cached at {model_dest}")
+        return
+
     try:
         from huggingface_hub import hf_hub_download
-        print(f"[MODEL] Downloading from Hugging Face: {model_repo}…")
+        print(f"[MODEL] [BACKGROUND] Downloading from Hugging Face: {model_repo}…")
         downloaded_path = hf_hub_download(
             repo_id=model_repo,
             filename="CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth",
             cache_dir="./storage/models"
         )
-        print(f"[MODEL] Download complete → {downloaded_path}")
+        print(f"[MODEL] [BACKGROUND] Download complete → {downloaded_path}")
         os.environ["MODEL_PATH"] = downloaded_path
     except Exception as e:
         print(f"[WARN] Model download from Hugging Face failed: {e}")
+        print(f"[WARN] API started without model. Use POST /admin/upload-model to upload manually")
         print(f"[WARN] API will start without a model. Upload via POST /admin/upload-model")
 
 
@@ -128,10 +148,18 @@ async def _download_model_from_huggingface():
 async def startup_event():
     """Initialize database and load model on startup"""
     await database.connect()
-    # Auto-download model from Hugging Face if MODEL_DRIVE_ID is set
+    # Check if model cached; if not, schedule background download
     await _download_model_from_huggingface()
-    await model_service.load_model()
-    print("[OK] API Ready - Model loaded")
+    # Try to load cached model (won't fail if missing — model_service handles it)
+    try:
+        await model_service.load_model()
+    except Exception as e:
+        print(f"[WARN] Could not load model on startup: {e}. Will retry on first request.")
+    print("[OK] API Ready - Accepting requests")
+    
+    # Start background model download task (non-blocking)
+    import asyncio
+    asyncio.create_task(_background_model_download())
 
 async def _ensure_rag_ready():
     """Lazy-load RAG service and index on first query to save startup memory"""
