@@ -138,8 +138,38 @@ async def _download_model_from_huggingface():
     # Don't actually download here — do it in background task
 
 
+# async def _background_model_download():
+#     """Background task to download model after API is ready"""
+#     import asyncio
+#     await asyncio.sleep(2)  # Wait for API to be fully ready
+    
+#     model_repo = os.getenv("MODEL_DRIVE_ID", "").strip()
+#     if not model_repo:
+#         return
+
+#     model_dest = os.path.join("storage", "models", "model.pth")
+    
+#     if os.path.exists(model_dest):
+#         print(f"[MODEL] Model already cached at {model_dest}")
+#         return
+
+#     try:
+#         from huggingface_hub import hf_hub_download
+#         print(f"[MODEL] [BACKGROUND] Downloading from Hugging Face: {model_repo}…")
+#         downloaded_path = hf_hub_download(
+#             repo_id=model_repo,
+#             filename="CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth",
+#             cache_dir="./storage/models"
+#         )
+#         print(f"[MODEL] [BACKGROUND] Download complete → {downloaded_path}")
+#         os.environ["MODEL_PATH"] = downloaded_path
+#     except Exception as e:
+#         print(f"[WARN] Model download from Hugging Face failed: {e}")
+#         print(f"[WARN] API started without model. Use POST /admin/upload-model to upload manually")
+#         print(f"[WARN] API will start without a model. Upload via POST /admin/upload-model")
+
 async def _background_model_download():
-    """Background task to download model after API is ready"""
+    """Background task to download and LOAD model after API is ready"""
     import asyncio
     await asyncio.sleep(2)  # Wait for API to be fully ready
     
@@ -149,10 +179,6 @@ async def _background_model_download():
 
     model_dest = os.path.join("storage", "models", "model.pth")
     
-    if os.path.exists(model_dest):
-        print(f"[MODEL] Model already cached at {model_dest}")
-        return
-
     try:
         from huggingface_hub import hf_hub_download
         print(f"[MODEL] [BACKGROUND] Downloading from Hugging Face: {model_repo}…")
@@ -162,13 +188,17 @@ async def _background_model_download():
             cache_dir="./storage/models"
         )
         print(f"[MODEL] [BACKGROUND] Download complete → {downloaded_path}")
-        os.environ["MODEL_PATH"] = downloaded_path
+        
+        # =========================================================
+        # ADD THIS LINE: Explicitly load the model into model_service
+        # =========================================================
+        await model_service.load_model(downloaded_path)
+        print("[MODEL] [BACKGROUND] Model successfully loaded into memory!")
+        
     except Exception as e:
-        print(f"[WARN] Model download from Hugging Face failed: {e}")
-        print(f"[WARN] API started without model. Use POST /admin/upload-model to upload manually")
-        print(f"[WARN] API will start without a model. Upload via POST /admin/upload-model")
+        print(f"[WARN] Model download/load from Hugging Face failed: {e}")
 
-
+        
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and load model on startup"""
