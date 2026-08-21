@@ -68,6 +68,9 @@ except Exception as e:
     rag_service = RAGv1()
     print("[INFO] Fallback to RAG v1")
 
+# Track if RAG index has been built
+_rag_index_built = False
+
 # Models
 class PredictionResponse(BaseModel):
     scan_id: str
@@ -136,17 +139,21 @@ async def startup_event():
     # Auto-download model from Hugging Face if MODEL_DRIVE_ID is set
     await _download_model_from_huggingface()
     await model_service.load_model()
-    # Build or load RAG index (runs in background thread to avoid blocking event loop)
-    import anyio
-    def _build():
+    print("[OK] API Ready - Model loaded")
+
+async def _ensure_rag_ready():
+    """Lazy-load RAG index on first query to save startup memory"""
+    global _rag_index_built
+    if not _rag_index_built:
         try:
-            rag_service.build_index()
-            print("[OK] RAG index ready")
+            import anyio
+            def _build():
+                rag_service.build_index()
+                print("[OK] RAG index ready")
+            await anyio.to_thread.run_sync(_build)
+            _rag_index_built = True
         except Exception as e:
             print(f"[WARN] RAG index build failed: {e}")
-
-    await anyio.to_thread.run_sync(_build)
-    print("[OK] API Ready - Model and RAG initialized")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -215,6 +222,9 @@ async def predict_disease(
     - Returns: Disease class, confidence, GradCAM heatmap
     - Performs: OOD detection, confidence calibration
     """
+    # Ensure RAG is ready (lazy-load on first query)
+    await _ensure_rag_ready()
+    
     # Validate file type
     if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
         raise HTTPException(400, "Only JPEG/PNG images accepted")
@@ -554,6 +564,9 @@ async def rag_query(payload: dict):
 
     Returns list of top results with source and snippet.
     """
+    # Ensure RAG is ready (lazy-load on first query)
+    await _ensure_rag_ready()
+    
     q = payload.get("query") if isinstance(payload, dict) else None
     if not q:
         raise HTTPException(400, "Missing 'query' in request body")
