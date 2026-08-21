@@ -119,7 +119,7 @@ async def _download_model_from_huggingface():
         print(f"[MODEL] Downloading from Hugging Face: {model_repo}…")
         downloaded_path = hf_hub_download(
             repo_id=model_repo,
-            filename="CBAM_False_SUPCON_False_FISHR_False_DVD_False_best_test.pth",
+            filename="CBAM_True_SUPCON_True_FISHR_True_DVD_True_best_field.pth",
             cache_dir="./storage/models"
         )
         print(f"[MODEL] Download complete → {downloaded_path}")
@@ -507,6 +507,9 @@ async def download_model(
     
     if version == "current":
         version = model_service.get_version()
+    
+    if not model_service.is_loaded():
+        raise HTTPException(503, "No model currently loaded. Upload a model first via POST /admin/upload-model")
         
     try:
         model_path = await storage.download_model(version)
